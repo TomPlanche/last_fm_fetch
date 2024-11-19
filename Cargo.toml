@@ -1,0 +1,11 @@
+[package]
+name = "async_lastfm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+reqwest = { version = "0.12.9", features = ["json"] }
+serde = { version = "1.0.215", features = ["derive"] }
+tokio = { version = "1.41.1", features = ["full"] }
+url = { version = "2.5.3", features = ["serde"] }
