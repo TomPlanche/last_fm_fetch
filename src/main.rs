@@ -1,6 +1,9 @@
 #[path = "url_builder.rs"]
 mod url_builder;
 
+#[path = "types.rs"]
+mod types;
+
 use dotenv::dotenv;
 use reqwest::Error;
 use std::env;
@@ -30,6 +33,19 @@ async fn main() -> Result<(), Error> {
         ])
         .build();
     println!("URL to get loved tracks created: {}", get_top_tracks);
+
+    println!("Sending request to get loved tracks");
+    let loved_tracks_response = reqwest::get(&get_top_tracks).await?;
+    println!(
+        "Love Tracks Response status: {}",
+        loved_tracks_response.status()
+    );
+
+    println!("Parsing loved tracks response");
+    let loved_tracks: types::UserLovedTracks = loved_tracks_response.json().await?;
+    println!("Loved tracks parsed");
+
+    println!("{:?}", loved_tracks);
 
     Ok(())
 }
