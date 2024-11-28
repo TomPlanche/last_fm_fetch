@@ -80,6 +80,14 @@ pub struct Streamable {
     pub text: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Artist {
+    pub name: String,
+    pub mbid: String,
+    pub url: String,
+    image: Vec<TrackImage>,
+}
+
 // USER SCHEMAS ===============================================================
 // Loved Track Schema
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -88,6 +96,9 @@ pub struct LovedTrack {
     pub date: Date,
     pub image: Vec<TrackImage>,
     pub streamable: Streamable,
+    pub name: String,
+    pub mbid: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

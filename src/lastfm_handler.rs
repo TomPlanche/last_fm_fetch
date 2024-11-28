@@ -52,8 +52,19 @@ impl LastFMHandler {
 
         let final_limit = limit.unwrap_or(API_MAX_LIMIT);
 
-        if final_limit > API_MAX_LIMIT {
-            let needed_chunks = ((final_limit / CHUNK_SIZE) as f32).floor() as u32;
+        // Make an initial request to get the total number of tracks
+        let mut base_params: QueryParams = HashMap::new();
+        base_params.insert("limit".to_string(), "1".to_string()); // Request only 1 track to get the total count
+
+        let initial_response: UserRecentTracks =
+            self.fetch("user.getrecenttracks", &base_params).await?;
+        let total_tracks = initial_response.recenttracks.attr.total;
+
+        // Determine the actual limit to use
+        let actual_limit = final_limit.min(total_tracks);
+
+        if actual_limit > API_MAX_LIMIT {
+            let needed_chunks = ((actual_limit / CHUNK_SIZE) as f32).floor() as u32;
 
             println!("Needed chunks: {}", needed_chunks);
 
@@ -96,7 +107,7 @@ impl LastFMHandler {
             }
 
             // Handle remainder
-            let remainder = final_limit % CHUNK_SIZE;
+            let remainder = actual_limit % CHUNK_SIZE;
             println!("Remainder: {}", remainder);
             let needed_calls = (remainder as f32 / API_MAX_LIMIT as f32).ceil() as u32;
 
@@ -127,7 +138,7 @@ impl LastFMHandler {
             }
         } else {
             let mut base_params: QueryParams = HashMap::new();
-            let final_limit_str = final_limit.to_string();
+            let final_limit_str = actual_limit.to_string();
 
             base_params.insert("limit".to_string(), final_limit_str);
 
@@ -138,7 +149,7 @@ impl LastFMHandler {
         }
 
         // trunc the vector to the final limit
-        let final_tracks = all_tracks.into_iter().take(final_limit as usize).collect();
+        let final_tracks = all_tracks.into_iter().take(actual_limit as usize).collect();
 
         Ok(final_tracks)
     }

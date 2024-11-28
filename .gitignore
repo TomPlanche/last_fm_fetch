@@ -1,5 +1,6 @@
 /target
-.env
+/.idea
 
+.env
 .commitignore
 commit_message.md

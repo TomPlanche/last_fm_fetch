@@ -22,7 +22,7 @@ async fn main() -> Result<(), Error> {
 
     let handler = lastfm_handler::LastFMHandler::new(base_url, "tom_planche");
 
-    let recent_tracks = handler.get_user_recent_tracks(Some(20000)).await?;
+    let recent_tracks = handler.get_user_recent_tracks(Some(100_000)).await?;
 
     println!("Recent tracks' length: {}", recent_tracks.len());
 
