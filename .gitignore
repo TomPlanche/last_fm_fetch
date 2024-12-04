@@ -1,5 +1,8 @@
+# Rust and IDE
 /target
 /.idea
+
+/data
 
 .env
 .commitignore

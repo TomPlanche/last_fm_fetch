@@ -1,13 +1,18 @@
+#[path = "file_handler.rs"]
+mod file_handler;
+
+#[path = "lastfm_handler.rs"]
+mod lastfm_handler;
+
 #[path = "types.rs"]
 mod types;
 
 #[path = "url_builder.rs"]
 mod url_builder;
 
-#[path = "lastfm_handler.rs"]
-mod lastfm_handler;
-
 use dotenv::dotenv;
+use file_handler::{FileFormat, FileHandler};
+use lastfm_handler::TrackLimit;
 use reqwest::Error;
 // use tabular::{Row, Table};
 use url_builder::Url;
@@ -22,9 +27,12 @@ async fn main() -> Result<(), Error> {
 
     let handler = lastfm_handler::LastFMHandler::new(base_url, "tom_planche");
 
-    let recent_tracks = handler.get_user_recent_tracks(Some(10_000)).await?;
+    let all_recent_tracks = handler.get_user_recent_tracks(Some(110000)).await?;
 
-    println!("Recent tracks' length: {}", recent_tracks.len());
+    match FileHandler::save(&all_recent_tracks, FileFormat::JSON, "recent_tracks") {
+        Ok(filename) => println!("Successfully saved tracks to {}", filename),
+        Err(e) => eprintln!("Error saving tracks: {}", e),
+    }
 
     Ok(())
 }
