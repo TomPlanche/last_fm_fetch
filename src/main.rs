@@ -27,7 +27,9 @@ async fn main() -> Result<(), Error> {
 
     let handler = lastfm_handler::LastFMHandler::new(base_url, "tom_planche");
 
-    let all_recent_tracks = handler.get_user_recent_tracks(Some(110000)).await?;
+    let all_recent_tracks = handler
+        .get_user_recent_tracks(TrackLimit::Unlimited)
+        .await?;
 
     match FileHandler::save(&all_recent_tracks, FileFormat::JSON, "recent_tracks") {
         Ok(filename) => println!("Successfully saved tracks to {}", filename),

@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::fs::{self, File};
 use std::io::{prelude::*, Result};
 
+#[allow(dead_code)]
 pub enum FileFormat {
     JSON,
     CSV,
@@ -60,6 +61,7 @@ impl FileHandler {
     /// ## Arguments
     /// * `data` - Data to save
     /// * `filename` - Filename to save as
+    #[allow(dead_code)]
     fn save_as_json<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
         let json = serde_json::to_string_pretty(data)?;
         let mut file = File::create(filename)?;

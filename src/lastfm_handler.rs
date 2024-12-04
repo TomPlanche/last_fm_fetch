@@ -82,6 +82,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<Vec<LovedTrack>, Error>` - The fetched tracks.
+    #[allow(dead_code)]
     pub async fn get_user_loved_tracks(
         &self,
         limit: impl Into<TrackLimit>,
@@ -99,6 +100,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<Vec<RecentTrack>, Error>` - The fetched tracks.
+    #[allow(dead_code)]
     pub async fn get_user_recent_tracks(
         &self,
         limit: impl Into<TrackLimit>,
@@ -286,6 +288,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
+    #[allow(dead_code)]
     pub async fn get_and_save_recent_tracks(
         &self,
         limit: impl Into<TrackLimit>,
@@ -306,6 +309,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
+    #[allow(dead_code)]
     pub async fn get_and_save_loved_tracks(
         &self,
         limit: impl Into<TrackLimit>,
@@ -425,7 +429,7 @@ mod tests {
         });
 
         // Mock initial request for total count
-        let count_mock = server
+        server
             .mock("GET", "/")
             .match_query(mockito::Matcher::AllOf(vec![
                 mockito::Matcher::UrlEncoded("limit".into(), "1".into()),
