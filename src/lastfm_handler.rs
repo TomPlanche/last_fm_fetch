@@ -28,30 +28,33 @@ impl From<Option<u32>> for TrackLimit {
 }
 
 trait TrackContainer {
-    type TrackType;
+    type ApiTrackType;
+    type StorageTrackType: From<Self::ApiTrackType>;
 
     fn total_tracks(&self) -> u32;
-    fn tracks(self) -> Vec<Self::TrackType>;
+    fn tracks(self) -> Vec<Self::ApiTrackType>;
 }
 
 impl TrackContainer for UserLovedTracks {
-    type TrackType = LovedTrack;
+    type ApiTrackType = LovedTrack; // No change needed for LovedTracks
+    type StorageTrackType = LovedTrack; // No change needed for LovedTracks
 
     fn total_tracks(&self) -> u32 {
         self.lovedtracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn tracks(self) -> Vec<Self::ApiTrackType> {
         self.lovedtracks.track
     }
 }
 
 impl TrackContainer for UserRecentTracks {
-    type TrackType = RecentTrack;
+    type ApiTrackType = ApiRecentTrack;
+    type StorageTrackType = RecentTrack;
 
     fn total_tracks(&self) -> u32 {
         self.recenttracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn tracks(self) -> Vec<Self::ApiTrackType> {
         self.recenttracks.track
     }
 }
@@ -123,8 +126,8 @@ impl LastFMHandler {
         &self,
         method: &str,
         limit: TrackLimit,
-    ) -> Result<Vec<T::TrackType>, Error> {
-        let mut all_tracks: Vec<T::TrackType> = Vec::new();
+    ) -> Result<Vec<T::StorageTrackType>, Error> {
+        let mut all_tracks: Vec<T::StorageTrackType> = Vec::new();
 
         // Make an initial request to get the total number of tracks
         let mut base_params: QueryParams = HashMap::new();
@@ -149,7 +152,13 @@ impl LastFMHandler {
 
             // If the total tracks are less than the requested limit, adjust the final limit
             let actual_limit = final_limit.min(total_tracks);
-            all_tracks.extend(response.tracks().into_iter().take(actual_limit as usize));
+            all_tracks.extend(
+                response
+                    .tracks()
+                    .into_iter()
+                    .take(actual_limit as usize)
+                    .map(|t| T::StorageTrackType::from(t)),
+            );
 
             return Ok(all_tracks);
         }
@@ -198,7 +207,12 @@ impl LastFMHandler {
                 for result in chunk_results {
                     // Handle potential errors and add tracks
                     match result {
-                        Ok(tracks) => all_tracks.extend(tracks.tracks()),
+                        Ok(tracks) => all_tracks.extend(
+                            tracks
+                                .tracks()
+                                .into_iter()
+                                .map(|t| T::StorageTrackType::from(t)),
+                        ),
                         Err(e) => return Err(e), // Or handle errors as appropriate
                     }
                 }
@@ -227,7 +241,12 @@ impl LastFMHandler {
 
             for result in chunk_results {
                 match result {
-                    Ok(tracks) => all_tracks.extend(tracks.tracks()),
+                    Ok(tracks) => all_tracks.extend(
+                        tracks
+                            .tracks()
+                            .into_iter()
+                            .map(|t| T::StorageTrackType::from(t)),
+                    ),
                     Err(e) => return Err(e),
                 }
             }
@@ -239,7 +258,12 @@ impl LastFMHandler {
 
             let response: T = self.fetch(method, &base_params).await?;
 
-            all_tracks.extend(response.tracks());
+            all_tracks.extend(
+                response
+                    .tracks()
+                    .into_iter()
+                    .map(|t| T::StorageTrackType::from(t)),
+            );
         }
 
         // trunc the vector to the final limit

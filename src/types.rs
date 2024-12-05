@@ -17,9 +17,9 @@ where
 {
     let s: &str = Deserialize::deserialize(deserializer)?;
 
-    match s {
-        "1" => Ok(true),
-        "0" => Ok(false),
+    match s.to_lowercase().as_str() {
+        "1" | "true" => Ok(true),
+        "0" | "false" => Ok(false),
         _ => Err(serde::de::Error::custom("Invalid boolean value")),
     }
 }
@@ -65,13 +65,13 @@ pub struct TrackImage {
     pub text: String,
 }
 
-#[derive(Serialize, Debug, Deserialize, Clone)]
-pub struct Date {
-    #[serde(deserialize_with = "u32_from_str")]
-    pub uts: u32,
-    #[serde(rename = "#text")]
-    pub text: String,
-}
+// #[derive(Serialize, Debug, Deserialize, Clone)]
+// pub struct Date {
+//     #[serde(deserialize_with = "u32_from_str")]
+//     pub uts: u32,
+//     #[serde(rename = "#text")]
+//     pub text: String,
+// }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Streamable {
@@ -113,24 +113,22 @@ pub struct UserLovedTracks {
     pub lovedtracks: LovedTracks,
 }
 
-// Recent Track Schema
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RecentTrack {
-    pub artist: BaseMbidText,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApiRecentTrackExtended {
+    pub artist: BaseObject,
     #[serde(deserialize_with = "bool_from_str")]
     pub streamable: bool,
     pub image: Vec<TrackImage>,
-    pub album: BaseMbidText,
+    pub album: BaseObject,
     #[serde(rename = "@attr")]
     pub attr: Option<HashMap<String, String>>,
-    pub date: Option<Date>,
+    pub date: Option<ApiDate>,
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RecentTrackExtended {
     pub artist: BaseObject,
-    #[serde(deserialize_with = "bool_from_str")]
     pub streamable: bool,
     pub image: Vec<TrackImage>,
     pub album: BaseObject,
@@ -142,7 +140,7 @@ pub struct RecentTrackExtended {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RecentTracks {
-    pub track: Vec<RecentTrack>,
+    pub track: Vec<ApiRecentTrack>,
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
@@ -150,4 +148,69 @@ pub struct RecentTracks {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserRecentTracks {
     pub recenttracks: RecentTracks,
+}
+
+// API response structs
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApiRecentTrack {
+    pub artist: BaseMbidText,
+    #[serde(deserialize_with = "bool_from_str")]
+    pub streamable: bool,
+    pub image: Vec<TrackImage>,
+    pub album: BaseMbidText,
+    #[serde(rename = "@attr")]
+    pub attr: Option<HashMap<String, String>>,
+    pub date: Option<ApiDate>,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApiDate {
+    #[serde(deserialize_with = "u32_from_str")]
+    pub uts: u32,
+    #[serde(rename = "#text")]
+    pub text: String,
+}
+
+// File storage structs
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RecentTrack {
+    pub artist: BaseMbidText,
+    pub streamable: bool,
+    pub image: Vec<TrackImage>,
+    pub album: BaseMbidText,
+    pub attr: Option<HashMap<String, String>>,
+    pub date: Option<Date>,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Date {
+    pub uts: u32,
+    #[serde(rename = "#text")]
+    pub text: String,
+}
+
+// Conversion implementations
+impl From<ApiRecentTrack> for RecentTrack {
+    fn from(api_track: ApiRecentTrack) -> Self {
+        RecentTrack {
+            artist: api_track.artist,
+            streamable: api_track.streamable,
+            image: api_track.image,
+            album: api_track.album,
+            attr: api_track.attr,
+            date: api_track.date.map(|d| d.into()),
+            name: api_track.name,
+        }
+    }
+}
+
+impl From<ApiDate> for Date {
+    fn from(api_date: ApiDate) -> Self {
+        Date {
+            uts: api_date.uts,
+            text: api_date.text,
+        }
+    }
 }
