@@ -13,14 +13,12 @@ mod types;
 #[path = "url_builder.rs"]
 mod url_builder;
 
-use analytics::{AnalysisHandler, TrackStats};
+use analytics::AnalysisHandler;
 use dotenv::dotenv;
-use file_handler::{FileFormat, FileHandler};
 use lastfm_handler::TrackLimit;
 use reqwest::Error;
 use std::path::Path;
 use types::RecentTrack;
-// use tabular::{Row, Table};
 use url_builder::Url;
 
 /// Error type for application-specific errors
@@ -56,24 +54,41 @@ async fn main() -> Result<(), Error> {
 
     let handler = lastfm_handler::LastFMHandler::new(base_url, "tom_planche");
 
-    let all_recent_tracks = handler
-        .get_user_recent_tracks(TrackLimit::Limited(30))
-        .await?;
+    // match FileHandler::save(&all_recent_tracks, FileFormat::JSON, "recent_tracks") {
+    //     Ok(filename) => {
+    //         println!("Successfully saved tracks to {}", filename);
 
-    match FileHandler::save(&all_recent_tracks, FileFormat::JSON, "recent_tracks") {
-        Ok(filename) => {
-            println!("Successfully saved tracks to {}", filename);
+    //         let file_path = Path::new(&filename);
 
-            let file_path = Path::new(&filename);
+    //         println!("\nAnalyzing recent tracks...");
+    //         let stats: TrackStats =
+    //             AnalysisHandler::analyze_file::<RecentTrack>(file_path, 100).unwrap();
 
-            println!("\nAnalyzing recent tracks...");
-            let stats: TrackStats =
-                AnalysisHandler::analyze_file::<RecentTrack>(file_path, 100).unwrap();
+    //         AnalysisHandler::print_analysis(&stats);
+    //     }
+    //     Err(e) => eprintln!("Error saving tracks: {}", e),
+    // }
 
+    // let filename = "data/recent_tracks_20241204_232653.json";
+
+    // let stats = AnalysisHandler::analyze_file::<RecentTrack>(Path::new(&filename), 10).unwrap();
+    // AnalysisHandler::print_analysis(&stats);
+
+    let recent_tracks_file = Path::new("data/recent_tracks_20241204_232653.json");
+
+    match handler
+        .update_tracks_file::<RecentTrack>(recent_tracks_file)
+        .await
+    {
+        Ok(file) => {
+            println!("Successfully updated tracks file: {file:?}");
+
+            let stats = AnalysisHandler::analyze_file::<RecentTrack>(Path::new(&file), 10).unwrap();
             AnalysisHandler::print_analysis(&stats);
         }
-        Err(e) => eprintln!("Error saving tracks: {}", e),
+        Err(e) => eprintln!("Error updating tracks file: {e}"),
     }
 
     Ok(())
 }
+// 100436

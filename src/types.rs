@@ -214,3 +214,19 @@ impl From<ApiDate> for Date {
         }
     }
 }
+
+pub trait Timestamped {
+    fn get_timestamp(&self) -> Option<u32>;
+}
+
+impl Timestamped for RecentTrack {
+    fn get_timestamp(&self) -> Option<u32> {
+        self.date.as_ref().map(|d| d.uts)
+    }
+}
+
+impl Timestamped for LovedTrack {
+    fn get_timestamp(&self) -> Option<u32> {
+        Some(self.date.uts)
+    }
+}

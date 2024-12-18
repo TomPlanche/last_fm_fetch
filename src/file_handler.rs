@@ -1,7 +1,7 @@
 use chrono::Local;
 use csv::Writer;
 use serde::Serialize;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{prelude::*, Result};
 
 #[allow(dead_code)]
@@ -87,5 +87,66 @@ impl FileHandler {
 
         writer.flush()?;
         Ok(())
+    }
+
+    ///
+    /// # append
+    /// Append data to an existing file.
+    ///
+    /// ## Arguments
+    /// * `data` - Data to append
+    /// * `file_path` - Path to the file to append to
+    ///
+    /// ## Returns
+    /// * `Result<String>` - Path of the updated file
+    ///
+    /// # append
+    /// Append data to an existing file.
+    ///
+    /// ## Arguments
+    /// * `data` - Data to append
+    /// * `file_path` - Path to the file to append to
+    ///
+    /// ## Returns
+    /// * `Result<String>` - Path of the updated file
+    pub fn append<T: Serialize + for<'de> serde::Deserialize<'de> + Clone>(
+        data: &[T],
+        file_path: &str,
+    ) -> Result<String> {
+        // Determine file format from extension
+        let format = if file_path.ends_with(".json") {
+            FileFormat::JSON
+        } else if file_path.ends_with(".csv") {
+            FileFormat::CSV
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Unsupported file format",
+            ));
+        };
+
+        match format {
+            FileFormat::JSON => {
+                // For JSON, we need to read the existing data, combine it, and write it back
+                let file = File::open(file_path)?;
+                let mut existing_data: Vec<T> = serde_json::from_reader(file)?;
+
+                existing_data.extend(data.iter().cloned());
+
+                Self::save_as_json(&existing_data, file_path)?;
+            }
+            FileFormat::CSV => {
+                // For CSV, we can simply append to the file
+                let mut writer =
+                    Writer::from_writer(OpenOptions::new().append(true).open(file_path)?);
+
+                for item in data {
+                    writer.serialize(item)?;
+                }
+                writer.flush()?;
+            }
+        }
+
+        Ok(file_path.to_string())
     }
 }

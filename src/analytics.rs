@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde::de::DeserializeOwned;
 
-use crate::types::{LovedTrack, RecentTrack};
+use crate::types::{LovedTrack, RecentTrack, Timestamped};
 
 /// Trait for types that can be analyzed as tracks
 #[allow(dead_code)]
@@ -180,12 +180,34 @@ impl AnalysisHandler {
             stats.tracks_above_threshold.len()
         );
     }
+
+    ///
+    /// # `get_most_recent_timestamp`
+    /// Get the most recent timestamp from a JSON file.
+    ///
+    /// ## Arguments
+    /// * `file_path` - Path to the JSON file
+    ///
+    /// ## Returns
+    /// * `Option<u32>` - Most recent timestamp
+    pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(
+        file_path: &Path,
+    ) -> Result<Option<u32>, Box<dyn std::error::Error>> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        let tracks: Vec<T> = serde_json::from_reader(reader)?;
+
+        Ok(tracks
+            .iter()
+            .filter_map(|track| track.get_timestamp())
+            .max())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{BaseMbidText, BaseObject, Date, Streamable, TrackImage};
+    use crate::types::{BaseMbidText, BaseObject, Date, Streamable};
 
     fn create_recent_track(artist: &str, name: &str) -> RecentTrack {
         RecentTrack {

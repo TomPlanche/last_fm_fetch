@@ -1,11 +1,14 @@
+use crate::analytics::AnalysisHandler;
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::*;
 use crate::url_builder::{QueryParams, Url};
 
 use reqwest::Error;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 
 const API_MAX_LIMIT: u32 = 1000;
 
@@ -90,7 +93,7 @@ impl LastFMHandler {
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<LovedTrack>, Error> {
-        self.get_user_tracks::<UserLovedTracks>("user.getlovedtracks", limit.into())
+        self.get_user_tracks::<UserLovedTracks>("user.getlovedtracks", limit.into(), None)
             .await
     }
 
@@ -108,7 +111,7 @@ impl LastFMHandler {
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>, Error> {
-        self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into())
+        self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into(), None)
             .await
     }
 
@@ -126,12 +129,22 @@ impl LastFMHandler {
         &self,
         method: &str,
         limit: TrackLimit,
+        additional_params: Option<QueryParams>,
     ) -> Result<Vec<T::StorageTrackType>, Error> {
+        let mut params = self.base_options.clone();
+        if let Some(additional_params) = additional_params {
+            params.extend(additional_params);
+        }
+
         let mut all_tracks: Vec<T::StorageTrackType> = Vec::new();
 
         // Make an initial request to get the total number of tracks
         let mut base_params: QueryParams = HashMap::new();
         base_params.insert("limit".to_string(), "1".to_string());
+        base_params.insert("page".to_string(), "1".to_string());
+        base_params.extend(params.clone());
+
+        println!("Base params: {:?}", base_params);
 
         let initial_response: T = self.fetch(method, &base_params).await?;
         let total_tracks = initial_response.total_tracks();
@@ -163,113 +176,36 @@ impl LastFMHandler {
             return Ok(all_tracks);
         }
 
-        // Make an initial request to get the total number of tracks
-        let mut base_params: QueryParams = HashMap::new();
-        base_params.insert("limit".to_string(), "1".to_string()); // Request only 1 track to get the total count
+        // Determine the number of API calls needed based on the final limit
+        let needed_calls = ((final_limit as f32) / (API_MAX_LIMIT as f32)).ceil() as u32;
 
-        let initial_response: T = self.fetch(method, &base_params).await?;
-        let total_tracks = initial_response.total_tracks();
+        for i in 1..needed_calls + 1 {
+            let final_limit_str = API_MAX_LIMIT.to_string();
+            let final_offset_str = i.to_string();
 
-        // Determine the actual limit to use
-        let actual_limit = final_limit.min(total_tracks);
+            let mut params = self.base_options.clone();
+            params.insert("limit".to_string(), final_limit_str);
+            params.insert("page".to_string(), final_offset_str);
 
-        if actual_limit > API_MAX_LIMIT {
-            let needed_chunks = ((actual_limit / CHUNK_SIZE) as f32).floor() as u32;
+            let response: T = self.fetch(method, &params).await?;
 
-            println!("Needed chunks: {}", needed_chunks);
-
-            for i in 0..needed_chunks {
-                let mut all_fetches = Vec::new();
-
-                println!("looping through chunks {}", i);
-
-                for j in 0..CHUNK_MULTIPLIER {
-                    println!("looping through chunk multiplier {}", j);
-
-                    let chunk_offset = i * CHUNK_MULTIPLIER + (j + 1);
-                    let final_limit_str = API_MAX_LIMIT.to_string();
-                    let final_offset_str = chunk_offset.to_string();
-
-                    // Create params inside this iteration to ensure it lives long enough
-                    let mut params = self.base_options.clone();
-                    params.insert("limit".to_string(), final_limit_str);
-                    params.insert("page".to_string(), final_offset_str);
-
-                    // Use async block to extend the lifetime of params
-                    let fetch = async move { self.fetch::<T>(method, &params).await };
-                    all_fetches.push(fetch);
-                }
-
-                // Await all fetches and collect results
-                let chunk_results = futures::future::join_all(all_fetches).await;
-
-                // Process and extend all_tracks with the results
-                for result in chunk_results {
-                    // Handle potential errors and add tracks
-                    match result {
-                        Ok(tracks) => all_tracks.extend(
-                            tracks
-                                .tracks()
-                                .into_iter()
-                                .map(|t| T::StorageTrackType::from(t)),
-                        ),
-                        Err(e) => return Err(e), // Or handle errors as appropriate
-                    }
-                }
-            }
-
-            // Handle remainder
-            let remainder = actual_limit % CHUNK_SIZE;
-            println!("Remainder: {}", remainder);
-            let needed_calls = (remainder as f32 / API_MAX_LIMIT as f32).ceil() as u32;
-
-            let mut all_fetches = Vec::new();
-
-            for i in 0..needed_calls {
-                let final_limit_str = API_MAX_LIMIT.to_string();
-                let final_offset_str = (CHUNK_MULTIPLIER * needed_chunks + i + 1).to_string();
-
-                let mut params = self.base_options.clone();
-                params.insert("limit".to_string(), final_limit_str);
-                params.insert("page".to_string(), final_offset_str);
-
-                let fetch = async move { self.fetch::<T>(method, &params).await };
-                all_fetches.push(fetch);
-            }
-
-            let chunk_results = futures::future::join_all(all_fetches).await;
-
-            for result in chunk_results {
-                match result {
-                    Ok(tracks) => all_tracks.extend(
-                        tracks
-                            .tracks()
-                            .into_iter()
-                            .map(|t| T::StorageTrackType::from(t)),
-                    ),
-                    Err(e) => return Err(e),
-                }
-            }
-        } else {
-            let mut base_params: QueryParams = HashMap::new();
-            let final_limit_str = actual_limit.to_string();
-
-            base_params.insert("limit".to_string(), final_limit_str);
-
-            let response: T = self.fetch(method, &base_params).await?;
+            // If it's the last API call, adjust the limit to the remaining tracks
+            let actual_limit = if i == needed_calls - 1 {
+                final_limit - (i * API_MAX_LIMIT)
+            } else {
+                API_MAX_LIMIT
+            };
 
             all_tracks.extend(
                 response
                     .tracks()
                     .into_iter()
+                    .take(actual_limit as usize)
                     .map(|t| T::StorageTrackType::from(t)),
             );
         }
 
-        // trunc the vector to the final limit
-        let final_tracks = all_tracks.into_iter().take(actual_limit as usize).collect();
-
-        Ok(final_tracks)
+        Ok(all_tracks)
     }
 
     ///
@@ -372,6 +308,87 @@ impl LastFMHandler {
         };
 
         Ok(a)
+    }
+
+    ///
+    /// # `get_user_recent_tracks_since`
+    /// Get recent tracks for a user since a given timestamp.
+    ///
+    /// ## Arguments
+    /// * `timestamp` - The timestamp to fetch tracks since.
+    /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Returns
+    /// * `Vec<RecentTrack>` - The fetched tracks.
+    pub async fn get_user_recent_tracks_since(
+        &self,
+        timestamp: u32,
+        limit: impl Into<TrackLimit>,
+    ) -> Result<Vec<RecentTrack>, Error> {
+        let mut params = QueryParams::new();
+        params.insert("from".to_string(), timestamp.to_string());
+
+        self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into(), Some(params))
+            .await
+    }
+
+    ///
+    /// # `get_user_loved_tracks_since`
+    /// Get loved tracks for a user since a given timestamp.
+    ///
+    /// ## Arguments
+    /// * `timestamp` - The timestamp to fetch tracks since.
+    /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Returns
+    /// * `Vec<LovedTrack>` - The fetched tracks.
+    pub async fn get_user_loved_tracks_since(
+        &self,
+        timestamp: u32,
+        limit: impl Into<TrackLimit>,
+    ) -> Result<Vec<LovedTrack>, Error> {
+        let tracks = self.get_user_loved_tracks(limit).await?;
+
+        Ok(tracks
+            .into_iter()
+            .filter(|track| track.date.uts > timestamp)
+            .collect())
+    }
+
+    ///
+    /// # `update_tracks_file`
+    /// Update a tracks file with new tracks.
+    ///
+    /// ## Arguments
+    /// * `file_path` - Path to the file to update.
+    /// * `fetch_since` - Function to fetch tracks since a given timestamp.
+    ///
+    /// ## Returns
+    /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the updated file.
+    pub async fn update_tracks_file<T: DeserializeOwned + Serialize + Timestamped>(
+        &self,
+        file_path: &Path,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        // Get the most recent timestamp from the file
+        let last_timestamp =
+            AnalysisHandler::get_most_recent_timestamp::<T>(file_path)?.unwrap_or(0);
+
+        println!("Last timestamp: {}", last_timestamp);
+
+        // Find the recent tracks in the file
+        let recent_tracks = self
+            .get_user_recent_tracks_since(last_timestamp, None)
+            .await?;
+
+        let file_path_str = file_path.to_str().unwrap();
+
+        println!("Recent tracks length: {}", recent_tracks.len());
+        println!("File name: {file_path_str}");
+
+        // // Append the new tracks to the file
+        let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
+
+        Ok(updated_file)
     }
 }
 
