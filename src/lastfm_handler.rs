@@ -3,6 +3,7 @@ use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::*;
 use crate::url_builder::{QueryParams, Url};
 
+use futures::future::join_all;
 use reqwest::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -136,15 +137,11 @@ impl LastFMHandler {
             params.extend(additional_params);
         }
 
-        let mut all_tracks: Vec<T::StorageTrackType> = Vec::new();
-
         // Make an initial request to get the total number of tracks
         let mut base_params: QueryParams = HashMap::new();
         base_params.insert("limit".to_string(), "1".to_string());
         base_params.insert("page".to_string(), "1".to_string());
         base_params.extend(params.clone());
-
-        println!("Base params: {:?}", base_params);
 
         let initial_response: T = self.fetch(method, &base_params).await?;
         let total_tracks = initial_response.total_tracks();
@@ -154,55 +151,75 @@ impl LastFMHandler {
             TrackLimit::Unlimited => total_tracks,
         };
 
-        if final_limit < API_MAX_LIMIT {
-            // Directly fetch the data with the specified limit
+        println!("Need to fetch {} tracks", final_limit);
+
+        if final_limit <= API_MAX_LIMIT {
+            // If we need less than the API limit, just make a single request
             let mut base_params: QueryParams = HashMap::new();
-            let final_limit_str = final_limit.to_string();
-            base_params.insert("limit".to_string(), final_limit_str);
+            base_params.insert("limit".to_string(), final_limit.to_string());
+            base_params.insert("page".to_string(), "1".to_string());
+            base_params.extend(params);
 
             let response: T = self.fetch(method, &base_params).await?;
-            let total_tracks = response.total_tracks();
-
-            // If the total tracks are less than the requested limit, adjust the final limit
-            let actual_limit = final_limit.min(total_tracks);
-            all_tracks.extend(
-                response
-                    .tracks()
-                    .into_iter()
-                    .take(actual_limit as usize)
-                    .map(|t| T::StorageTrackType::from(t)),
-            );
-
-            return Ok(all_tracks);
+            return Ok(response
+                .tracks()
+                .into_iter()
+                .take(final_limit as usize)
+                .map(|t| T::StorageTrackType::from(t))
+                .collect());
         }
 
-        // Determine the number of API calls needed based on the final limit
-        let needed_calls = ((final_limit as f32) / (API_MAX_LIMIT as f32)).ceil() as u32;
+        let chunk_nb = (final_limit as f32 / CHUNK_SIZE as f32).ceil() as u32;
 
-        for i in 1..needed_calls + 1 {
-            let final_limit_str = API_MAX_LIMIT.to_string();
-            let final_offset_str = i.to_string();
+        let mut all_tracks = Vec::new();
 
-            let mut params = self.base_options.clone();
-            params.insert("limit".to_string(), final_limit_str);
-            params.insert("page".to_string(), final_offset_str);
+        // Process chunks sequentially
+        for chunk_index in 0..chunk_nb {
+            println!("Processing chunk {}/{}", chunk_index + 1, chunk_nb);
+            let chunk_params = params.clone();
 
-            let response: T = self.fetch(method, &params).await?;
-
-            // If it's the last API call, adjust the limit to the remaining tracks
-            let actual_limit = if i == needed_calls - 1 {
-                final_limit - (i * API_MAX_LIMIT)
+            // Calculate how many API calls we need for this chunk
+            let chunk_api_calls = if chunk_index == chunk_nb - 1 {
+                // Last chunk
+                final_limit % CHUNK_SIZE / API_MAX_LIMIT + 1
             } else {
-                API_MAX_LIMIT
+                CHUNK_SIZE / API_MAX_LIMIT
             };
 
-            all_tracks.extend(
-                response
-                    .tracks()
-                    .into_iter()
-                    .take(actual_limit as usize)
-                    .map(|t| T::StorageTrackType::from(t)),
-            );
+            // Create futures for concurrent API calls within this chunk
+            let api_call_futures: Vec<_> = (0..chunk_api_calls)
+                .map(|call_index| {
+                    let mut call_params = chunk_params.clone();
+                    let call_limit =
+                        (final_limit - chunk_index * CHUNK_SIZE - call_index * API_MAX_LIMIT)
+                            .min(API_MAX_LIMIT);
+
+                    let page = chunk_index * CHUNK_SIZE / API_MAX_LIMIT + call_index + 1;
+
+                    call_params.insert("limit".to_string(), call_limit.to_string());
+                    call_params.insert("page".to_string(), page.to_string());
+
+                    async move {
+                        let response: T = self.fetch(method, &call_params).await?;
+                        Ok::<_, Error>(
+                            response
+                                .tracks()
+                                .into_iter()
+                                .take(call_limit as usize)
+                                .map(|t| T::StorageTrackType::from(t))
+                                .collect::<Vec<_>>(),
+                        )
+                    }
+                })
+                .collect();
+
+            // Process all API calls in this chunk concurrently
+            let chunk_results = join_all(api_call_futures).await;
+
+            // Collect results from this chunk
+            for result in chunk_results {
+                all_tracks.extend(result?);
+            }
         }
 
         Ok(all_tracks)
@@ -232,7 +249,6 @@ impl LastFMHandler {
         println!("Fetching: {}", base_url);
 
         let response = reqwest::get(&base_url).await?;
-
         let parsed_response = response.json::<T>().await?;
 
         Ok(parsed_response)
@@ -278,36 +294,6 @@ impl LastFMHandler {
         let tracks = self.get_user_loved_tracks(limit).await?;
         let filename = FileHandler::save(&tracks, format, "loved_tracks")?;
         Ok(filename)
-    }
-
-    #[allow(dead_code)]
-    async fn test_fetch(
-        &self,
-        method: &str,
-        params: &QueryParams,
-    ) -> Result<UserRecentTracks, Error> {
-        let mut final_params = self.base_options.clone();
-        final_params.insert("method".to_string(), method.to_string());
-        final_params.extend(params.clone());
-
-        let base_url = self.url.clone().add_args(final_params).build();
-
-        println!("[TEST] Fetching: {}", base_url);
-
-        let a: UserRecentTracks = UserRecentTracks {
-            recenttracks: RecentTracks {
-                track: vec![],
-                attr: BaseResponse {
-                    user: "tom".to_string(),
-                    total: 0,
-                    total_pages: 0,
-                    page: 0,
-                    per_page: 0,
-                },
-            },
-        };
-
-        Ok(a)
     }
 
     ///
@@ -373,17 +359,12 @@ impl LastFMHandler {
         let last_timestamp =
             AnalysisHandler::get_most_recent_timestamp::<T>(file_path)?.unwrap_or(0);
 
-        println!("Last timestamp: {}", last_timestamp);
-
         // Find the recent tracks in the file
         let recent_tracks = self
             .get_user_recent_tracks_since(last_timestamp, None)
             .await?;
 
         let file_path_str = file_path.to_str().unwrap();
-
-        println!("Recent tracks length: {}", recent_tracks.len());
-        println!("File name: {file_path_str}");
 
         // // Append the new tracks to the file
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
