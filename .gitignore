@@ -7,3 +7,5 @@
 .env
 .commitignore
 commit_message.md
+
+src/main.rs

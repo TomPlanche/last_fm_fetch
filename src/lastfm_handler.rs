@@ -165,7 +165,7 @@ impl LastFMHandler {
                 .tracks()
                 .into_iter()
                 .take(final_limit as usize)
-                .map(|t| T::StorageTrackType::from(t))
+                .map(T::StorageTrackType::from)
                 .collect());
         }
 
@@ -206,7 +206,7 @@ impl LastFMHandler {
                                 .tracks()
                                 .into_iter()
                                 .take(call_limit as usize)
-                                .map(|t| T::StorageTrackType::from(t))
+                                .map(T::StorageTrackType::from)
                                 .collect::<Vec<_>>(),
                         )
                     }
@@ -306,6 +306,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Vec<RecentTrack>` - The fetched tracks.
+    #[allow(dead_code)]
     pub async fn get_user_recent_tracks_since(
         &self,
         timestamp: u32,
@@ -328,6 +329,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Vec<LovedTrack>` - The fetched tracks.
+    #[allow(dead_code)]
     pub async fn get_user_loved_tracks_since(
         &self,
         timestamp: u32,
@@ -351,6 +353,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the updated file.
+    #[allow(dead_code)]
     pub async fn update_tracks_file<T: DeserializeOwned + Serialize + Timestamped>(
         &self,
         file_path: &Path,

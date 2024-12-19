@@ -190,6 +190,7 @@ impl AnalysisHandler {
     ///
     /// ## Returns
     /// * `Option<u32>` - Most recent timestamp
+    #[allow(dead_code)]
     pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(
         file_path: &Path,
     ) -> Result<Option<u32>, Box<dyn std::error::Error>> {

@@ -216,6 +216,7 @@ impl From<ApiDate> for Date {
 }
 
 pub trait Timestamped {
+    #[allow(dead_code)]
     fn get_timestamp(&self) -> Option<u32>;
 }
 

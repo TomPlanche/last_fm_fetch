@@ -6,8 +6,8 @@ use std::io::{prelude::*, Result};
 
 #[allow(dead_code)]
 pub enum FileFormat {
-    JSON,
-    CSV,
+    Json,
+    Csv,
 }
 
 pub struct FileHandler;
@@ -41,14 +41,14 @@ impl FileHandler {
             filename_prefix,
             timestamp,
             match format {
-                FileFormat::JSON => "json",
-                FileFormat::CSV => "csv",
+                FileFormat::Json => "json",
+                FileFormat::Csv => "csv",
             }
         );
 
         match format {
-            FileFormat::JSON => Self::save_as_json(data, &filename),
-            FileFormat::CSV => Self::save_as_csv(data, &filename),
+            FileFormat::Json => Self::save_as_json(data, &filename),
+            FileFormat::Csv => Self::save_as_csv(data, &filename),
         }?;
 
         Ok(filename)
@@ -109,15 +109,16 @@ impl FileHandler {
     ///
     /// ## Returns
     /// * `Result<String>` - Path of the updated file
+    #[allow(dead_code)]
     pub fn append<T: Serialize + for<'de> serde::Deserialize<'de> + Clone>(
         data: &[T],
         file_path: &str,
     ) -> Result<String> {
         // Determine file format from extension
         let format = if file_path.ends_with(".json") {
-            FileFormat::JSON
+            FileFormat::Json
         } else if file_path.ends_with(".csv") {
-            FileFormat::CSV
+            FileFormat::Csv
         } else {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -126,7 +127,7 @@ impl FileHandler {
         };
 
         match format {
-            FileFormat::JSON => {
+            FileFormat::Json => {
                 // For JSON, we need to read the existing data, combine it, and write it back
                 let file = File::open(file_path)?;
                 let mut existing_data: Vec<T> = serde_json::from_reader(file)?;
@@ -135,7 +136,7 @@ impl FileHandler {
 
                 Self::save_as_json(&existing_data, file_path)?;
             }
-            FileFormat::CSV => {
+            FileFormat::Csv => {
                 // For CSV, we can simply append to the file
                 let mut writer =
                     Writer::from_writer(OpenOptions::new().append(true).open(file_path)?);
