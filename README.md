@@ -61,6 +61,40 @@ async fn main() {
 }
 ```
 
+### Fetching & Saving Example
+
+```rust
+use async_lastfm::file_handler::FileFormat;
+use async_lastfm::lastfm_handler::{LastFMHandler, TrackLimit};
+use dotenv::dotenv;
+
+#[tokio::main]
+async fn main() {
+    // Load environment variables
+    dotenv().ok();
+
+    // Create a new handler for user "tom_planche"
+    let handler = LastFMHandler::new("tom_planche");
+
+    // Fetch all tracks and save them to a JSON file named "all_scrobbles"
+    let filename = handler
+        .get_and_save_recent_tracks(TrackLimit::Unlimited, FileFormat::Json, "all_scrobbles")
+        .await;
+
+    match filename {
+        Ok(filename) => println!("File saved as: {}", filename),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+}
+```
+
+This example shows how to:
+- Load environment variables (including your Last.fm API key)
+- Create a handler for a specific Last.fm user
+- Fetch all scrobbled tracks (using `TrackLimit::Unlimited`)
+- Save them to a JSON file with a custom name prefix
+- Handle potential errors during the process
+
 ### Analytics Example
 
 ```rust

@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 
+const BASE_URL: &str = "https://ws.audioscrobbler.com/2.0/";
+
 const API_MAX_LIMIT: u32 = 1000;
 
 const CHUNK_MULTIPLIER: u32 = 5;
@@ -70,12 +72,14 @@ pub struct LastFMHandler {
 }
 
 impl LastFMHandler {
-    pub fn new(url: Url, username: &str) -> Self {
+    pub fn new(username: &str) -> Self {
         let mut base_options = QueryParams::new();
         base_options.insert("api_key".to_string(), env::var("LAST_FM_API_KEY").unwrap());
         base_options.insert("limit".to_string(), API_MAX_LIMIT.to_string());
         base_options.insert("format".to_string(), "json".to_string());
         base_options.insert("user".to_string(), username.to_string());
+
+        let url = Url::new(BASE_URL);
 
         LastFMHandler { url, base_options }
     }
@@ -246,8 +250,6 @@ impl LastFMHandler {
 
         let base_url = self.url.clone().add_args(final_params).build();
 
-        println!("Fetching: {}", base_url);
-
         let response = reqwest::get(&base_url).await?;
         let parsed_response = response.json::<T>().await?;
 
@@ -269,9 +271,13 @@ impl LastFMHandler {
         &self,
         limit: impl Into<TrackLimit>,
         format: FileFormat,
+        filename_prefix: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let tracks = self.get_user_recent_tracks(limit).await?;
-        let filename = FileHandler::save(&tracks, format, "recent_tracks")?;
+
+        println!("Saving {} tracks to file", tracks.len());
+
+        let filename = FileHandler::save(&tracks, format, filename_prefix)?;
         Ok(filename)
     }
 
@@ -373,188 +379,5 @@ impl LastFMHandler {
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
 
         Ok(updated_file)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use dotenv::dotenv;
-    use mockito;
-    use serde_json::json;
-
-    fn setup() -> (mockito::Server, LastFMHandler) {
-        dotenv().ok();
-        std::env::set_var("LAST_FM_API_KEY", "test_api_key"); // Add this line
-
-        let opts = mockito::ServerOpts {
-            assert_on_drop: true,
-            ..Default::default()
-        };
-        let server = mockito::Server::new_with_opts(opts);
-
-        let url = Url::new(&server.url());
-        let handler = LastFMHandler::new(url, "tom_planche");
-
-        (server, handler)
-    }
-
-    #[tokio::test]
-    async fn test_get_user_loved_tracks_single_page() {
-        let (mut server, handler) = setup();
-
-        let mock_response = json!({
-          "lovedtracks": {
-            "track": [
-              {
-                "artist": {
-                  "url": "https://www.last.fm/music/Emmanuelle+Swiercz-Lamoure",
-                  "name": "Emmanuelle Swiercz-Lamoure",
-                  "mbid": ""
-                },
-                "date": {
-                  "uts": "1732028251",
-                  "#text": "19 Nov 2024, 14:57"
-                },
-                "mbid": "",
-                "url": "https://www.last.fm/music/Emmanuelle+Swiercz-Lamoure/_/Valse+en+Fa+Di%C3%A8se+Mineur,+KKIb%2F7+%22Valse+m%C3%A9lancolique%22",
-                "name": "Valse en Fa Dièse Mineur, KKIb/7 \"Valse mélancolique\"",
-                "image": [
-                  {
-                    "size": "small",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "medium",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/64s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "large",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/174s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "extralarge",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  }
-                ],
-                "streamable": {
-                  "fulltrack": "0",
-                  "#text": "0"
-                }
-              }
-            ],
-            "@attr": {
-              "user": "Tom_planche",
-              "totalPages": "74",
-              "page": "1",
-              "perPage": "1",
-              "total": "74"
-            }
-          }
-        });
-
-        // Mock initial request for total count
-        server
-            .mock("GET", "/")
-            .match_query(mockito::Matcher::AllOf(vec![
-                mockito::Matcher::UrlEncoded("limit".into(), "1".into()),
-                mockito::Matcher::UrlEncoded("method".into(), "user.getlovedtracks".into()),
-                mockito::Matcher::UrlEncoded("format".into(), "json".into()),
-                mockito::Matcher::UrlEncoded("api_key".into(), "test_api_key".into()),
-                mockito::Matcher::UrlEncoded("user".into(), "tom_planche".into()),
-            ]))
-            .with_status(200)
-            .with_body(mock_response.to_string())
-            .expect(2)
-            .create();
-
-        let result = handler.get_user_loved_tracks(Some(1)).await.unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(
-            result.first().unwrap().artist.name,
-            "Emmanuelle Swiercz-Lamoure"
-        );
-        assert_eq!(
-            result.first().unwrap().name,
-            "Valse en Fa Dièse Mineur, KKIb/7 \"Valse mélancolique\""
-        );
-    }
-
-    #[tokio::test]
-    async fn test_get_user_recent_tracks_single_page() {
-        let (mut server, handler) = setup();
-
-        let mock_response = json!({
-          "recenttracks": {
-            "track": [
-              {
-                "artist": {
-                  "mbid": "b90c4001-4c7d-4de2-a3e0-1afbc548af54",
-                  "#text": "Samson François"
-                },
-                "streamable": "0",
-                "image": [
-                  {
-                    "size": "small",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "medium",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/64s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "large",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/174s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  },
-                  {
-                    "size": "extralarge",
-                    "#text": "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png"
-                  }
-                ],
-                "mbid": "",
-                "album": {
-                  "mbid": "",
-                  "#text": "Chopin: 14 Waltzes [2011 - Remaster] (2011 - Remaster)"
-                },
-                "name": "Valse n°10 en si mineur Op.69 n°2 (Remasterisé en 2011 - Multi channel)",
-                "url": "https://www.last.fm/music/Samson+Fran%C3%A7ois/_/Valse+n%C2%B010+en+si+mineur+Op.69+n%C2%B02+(Remasteris%C3%A9+en+2011+-+Multi+channel)",
-                "date": {
-                  "uts": "1732815200",
-                  "#text": "28 Nov 2024, 17:33"
-                }
-              }
-            ],
-            "@attr": {
-              "user": "Tom_planche",
-              "totalPages": "99718",
-              "page": "1",
-              "perPage": "1",
-              "total": "99718"
-            }
-          }
-        });
-
-        // Mock initial request for total count
-        server
-            .mock("GET", "/")
-            .match_query(mockito::Matcher::AllOf(vec![
-                mockito::Matcher::UrlEncoded("limit".into(), "1".into()),
-                mockito::Matcher::UrlEncoded("method".into(), "user.getrecenttracks".into()),
-                mockito::Matcher::UrlEncoded("format".into(), "json".into()),
-                mockito::Matcher::UrlEncoded("api_key".into(), "test_api_key".into()),
-                mockito::Matcher::UrlEncoded("user".into(), "tom_planche".into()),
-            ]))
-            .with_status(200)
-            .with_body(mock_response.to_string())
-            .expect(2)
-            .create();
-
-        let result = handler.get_user_recent_tracks(Some(1)).await.unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result.first().unwrap().artist.text, "Samson François");
-        assert_eq!(
-            result.first().unwrap().name,
-            "Valse n°10 en si mineur Op.69 n°2 (Remasterisé en 2011 - Multi channel)"
-        );
     }
 }

@@ -124,6 +124,8 @@ pub struct ApiRecentTrackExtended {
     pub attr: Option<HashMap<String, String>>,
     pub date: Option<ApiDate>,
     pub name: String,
+    pub mbid: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -136,6 +138,8 @@ pub struct RecentTrackExtended {
     pub attr: Option<HashMap<String, String>>,
     pub date: Option<Date>,
     pub name: String,
+    pub mbid: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -162,6 +166,8 @@ pub struct ApiRecentTrack {
     pub attr: Option<HashMap<String, String>>,
     pub date: Option<ApiDate>,
     pub name: String,
+    pub mbid: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -182,6 +188,8 @@ pub struct RecentTrack {
     pub attr: Option<HashMap<String, String>>,
     pub date: Option<Date>,
     pub name: String,
+    pub mbid: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -202,6 +210,8 @@ impl From<ApiRecentTrack> for RecentTrack {
             attr: api_track.attr,
             date: api_track.date.map(|d| d.into()),
             name: api_track.name,
+            mbid: api_track.mbid,
+            url: api_track.url,
         }
     }
 }

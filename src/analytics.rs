@@ -225,6 +225,8 @@ mod tests {
             attr: None,
             date: None,
             name: name.to_string(),
+            mbid: String::new(),
+            url: String::new(),
         }
     }
 
