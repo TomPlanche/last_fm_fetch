@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::error::Error as StdError;
+use std::fmt;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LastFmErrorResponse {
@@ -28,10 +28,10 @@ impl fmt::Display for LastFmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LastFmError::Api(e) => write!(f, "Last.fm API error {}: {}", e.error, e.message),
-            LastFmError::Http(e) => write!(f, "HTTP error: {}", e),
-            LastFmError::Parse(e) => write!(f, "Parse error: {}", e),
-            LastFmError::Io(e) => write!(f, "I/O error: {}", e),
-            LastFmError::Other(e) => write!(f, "Error: {}", e),
+            LastFmError::Http(e) => write!(f, "HTTP error: {e}"),
+            LastFmError::Parse(e) => write!(f, "Parse error: {e}"),
+            LastFmError::Io(e) => write!(f, "I/O error: {e}"),
+            LastFmError::Other(e) => write!(f, "Error: {e}"),
         }
     }
 }
@@ -61,5 +61,5 @@ impl From<Box<dyn StdError>> for LastFmError {
     }
 }
 
-/// Helper type for Result with LastFmError
-pub type Result<T> = std::result::Result<T, LastFmError>; 
+/// Helper type for Result with `LastFmError`
+pub type Result<T> = std::result::Result<T, LastFmError>;

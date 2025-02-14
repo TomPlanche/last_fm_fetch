@@ -9,6 +9,7 @@ pub struct Url {
 }
 
 impl Url {
+    #[must_use]
     pub fn new(base: &str) -> Self {
         Url {
             base: base.to_string(),
@@ -16,12 +17,14 @@ impl Url {
         }
     }
 
+    #[must_use]
     pub fn add_args(mut self, args: QueryParams) -> Self {
         self.query_params.extend(args);
 
         self
     }
 
+    #[must_use]
     pub fn build(&self) -> String {
         if self.query_params.is_empty() {
             return self.base.clone();
@@ -30,7 +33,7 @@ impl Url {
         let query_string: Vec<String> = self
             .query_params
             .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
+            .map(|(k, v)| format!("{k}={v}"))
             .collect();
 
         format!("{}?{}", self.base, query_string.join("&"))

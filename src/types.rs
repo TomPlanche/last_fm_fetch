@@ -208,7 +208,7 @@ impl From<ApiRecentTrack> for RecentTrack {
             image: api_track.image,
             album: api_track.album,
             attr: api_track.attr,
-            date: api_track.date.map(|d| d.into()),
+            date: api_track.date.map(std::convert::Into::into),
             name: api_track.name,
             mbid: api_track.mbid,
             url: api_track.url,

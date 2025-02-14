@@ -63,13 +63,18 @@ pub struct TrackStats {
 pub struct AnalysisHandler;
 
 impl AnalysisHandler {
+    /// # `analyze_file`
     /// Analyze tracks from a JSON file
     ///
-    /// # Arguments
+    /// ## Arguments
     /// * `filename` - Path to the JSON file
     /// * `threshold` - Threshold for counting tracks with plays below this number
     ///
-    /// # Returns
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    /// * `InvalidUtf8` - If the file path is not valid UTF-8
+    ///
+    /// ## Returns
     /// * `Result<TrackStats, Box<dyn std::error::Error>>` - Analysis results
     pub fn analyze_file<T: DeserializeOwned + TrackAnalyzable>(
         file_path: &Path,
@@ -140,34 +145,35 @@ impl AnalysisHandler {
         }
     }
 
+    /// # `print_analysis`
     /// Print analysis results in a formatted way
     ///
-    /// # Arguments
-    /// * `stats` - TrackStats to print
+    /// ## Arguments
+    /// * `stats` - `TrackStats` to print
     pub fn print_analysis(stats: &TrackStats) {
         println!("=== Track Analysis ===");
         println!("Total tracks: {}", stats.total_tracks);
 
         if let Some((artist, count)) = &stats.most_played_artist {
-            println!("\nMost played artist: {} ({} plays)", artist, count);
+            println!("\nMost played artist: {artist} ({count} plays)");
         }
 
         if let Some((track, count)) = &stats.most_played_track {
-            println!("Most played track: {} ({} plays)", track, count);
+            println!("Most played track: {track} ({count} plays)");
         }
 
         println!("\nTop 10 Artists:");
         let mut artists: Vec<_> = stats.artist_play_counts.iter().collect();
         artists.sort_by(|a, b| b.1.cmp(a.1));
         for (artist, count) in artists.iter().take(10) {
-            println!("  {} - {} plays", artist, count);
+            println!("  {artist} - {count} plays");
         }
 
         println!("\nTop 10 Tracks:");
         let mut tracks: Vec<_> = stats.track_play_counts.iter().collect();
         tracks.sort_by(|a, b| b.1.cmp(a.1));
         for (track, count) in tracks.iter().take(10) {
-            println!("  {} - {} plays", track, count);
+            println!("  {track} - {count} plays");
         }
 
         println!(
@@ -188,6 +194,10 @@ impl AnalysisHandler {
     /// ## Arguments
     /// * `file_path` - Path to the JSON file
     ///
+    /// ## Errors
+    /// * `std::io::Error` - If the file cannot be opened or read
+    /// * `serde_json::Error` - If the JSON cannot be deserialized
+    ///
     /// ## Returns
     /// * `Option<u32>` - Most recent timestamp
     #[allow(dead_code)]
@@ -200,7 +210,7 @@ impl AnalysisHandler {
 
         Ok(tracks
             .iter()
-            .filter_map(|track| track.get_timestamp())
+            .filter_map(super::types::Timestamped::get_timestamp)
             .max())
     }
 }

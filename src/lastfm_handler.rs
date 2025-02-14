@@ -1,7 +1,9 @@
 use crate::analytics::AnalysisHandler;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::*;
+use crate::types::{
+    ApiRecentTrack, LovedTrack, RecentTrack, Timestamped, UserLovedTracks, UserRecentTracks,
+};
 use crate::url_builder::{QueryParams, Url};
 
 use futures::future::join_all;
@@ -65,6 +67,15 @@ impl TrackContainer for UserRecentTracks {
     }
 }
 
+/// Represents a track's play count information
+#[derive(Debug, Serialize)]
+pub struct TrackPlayInfo {
+    play_count: u32,
+    artist: String,
+    album: Option<String>,
+    image_url: Option<String>,
+}
+
 #[derive(Debug)]
 pub struct LastFMHandler {
     url: Url,
@@ -72,6 +83,18 @@ pub struct LastFMHandler {
 }
 
 impl LastFMHandler {
+    /// # `new`
+    /// Creates a new `LastFMHandler` instance.
+    ///
+    /// ## Arguments
+    /// * `username` - The Last.fm username.
+    ///
+    /// ## Panics
+    /// Panics if the environment variable `LAST_FM_API_KEY` is not set.
+    ///
+    /// ## Returns
+    /// * `Self` - The created `LastFMHandler` instance.
+    #[must_use]
     pub fn new(username: &str) -> Self {
         let mut base_options = QueryParams::new();
         base_options.insert("api_key".to_string(), env::var("LAST_FM_API_KEY").unwrap());
@@ -85,11 +108,14 @@ impl LastFMHandler {
     }
 
     ///
-    /// # get_user_loved_tracks
+    /// # `get_user_loved_tracks`
     /// Get loved tracks for a user.
     ///
     /// ## Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Errors
+    /// Returns an error if the API request fails.
     ///
     /// ## Returns
     /// * `Result<Vec<LovedTrack>, Error>` - The fetched tracks.
@@ -102,11 +128,14 @@ impl LastFMHandler {
     }
 
     ///
-    /// # get_user_recent_tracks
+    /// # `get_user_recent_tracks`
     /// Get recent tracks for a user.
     ///
     /// ## Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Errors
+    /// Returns an error if the API request fails.
     ///
     /// ## Returns
     /// * `Result<Vec<RecentTrack>, Error>` - The fetched tracks.
@@ -119,7 +148,7 @@ impl LastFMHandler {
     }
 
     ///
-    /// # get_user_tracks
+    /// # `get_user_tracks`
     /// Get tracks for a user.
     ///
     /// ## Arguments
@@ -153,7 +182,7 @@ impl LastFMHandler {
             TrackLimit::Unlimited => total_tracks,
         };
 
-        println!("Need to fetch {} tracks", final_limit);
+        println!("Need to fetch {final_limit} tracks");
 
         if final_limit <= API_MAX_LIMIT {
             // If we need less than the API limit, just make a single request
@@ -171,7 +200,7 @@ impl LastFMHandler {
                 .collect());
         }
 
-        let chunk_nb = (final_limit as f32 / CHUNK_SIZE as f32).ceil() as u32;
+        let chunk_nb = final_limit.div_ceil(CHUNK_SIZE);
 
         let mut all_tracks = Vec::new();
 
@@ -229,7 +258,7 @@ impl LastFMHandler {
 
     ///
     /// # fetch
-    /// Fetch data from the LastFM API.
+    /// Fetch data from the `LastFM` API.
     ///
     /// ## Arguments
     /// * `method` - The method to call.
@@ -258,12 +287,16 @@ impl LastFMHandler {
     }
 
     ///
-    /// # get_and_save_recent_tracks
+    /// # `get_and_save_recent_tracks`
     /// Get and save recent tracks to a file.
     ///
     /// ## Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     /// * `format` - The file format to save the tracks in.
+    ///
+    /// ## Errors
+    /// * `LastFmError::Api` - If the API returns an error.
+    /// * `LastFmError::Io` - If there is an error saving the file.
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
@@ -276,17 +309,21 @@ impl LastFMHandler {
         let tracks = self.get_user_recent_tracks(limit).await?;
         println!("Saving {} tracks to file", tracks.len());
         let filename =
-            FileHandler::save(&tracks, format, filename_prefix).map_err(LastFmError::Io)?;
+            FileHandler::save(&tracks, &format, filename_prefix).map_err(LastFmError::Io)?;
         Ok(filename)
     }
 
     ///
-    /// # get_and_save_loved_tracks
+    /// # `get_and_save_loved_tracks`
     /// Get and save loved tracks to a file.
     ///
     /// ## Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     /// * `format` - The file format to save the tracks in.
+    ///
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
@@ -297,7 +334,7 @@ impl LastFMHandler {
     ) -> Result<String> {
         let tracks = self.get_user_loved_tracks(limit).await?;
         let filename =
-            FileHandler::save(&tracks, format, "loved_tracks").map_err(LastFmError::Io)?;
+            FileHandler::save(&tracks, &format, "loved_tracks").map_err(LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -308,6 +345,10 @@ impl LastFMHandler {
     /// ## Arguments
     /// * `timestamp` - The timestamp to fetch tracks since.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
     /// ## Returns
     /// * `Vec<RecentTrack>` - The fetched tracks.
@@ -331,6 +372,10 @@ impl LastFMHandler {
     /// ## Arguments
     /// * `timestamp` - The timestamp to fetch tracks since.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
+    ///
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
     /// ## Returns
     /// * `Vec<LovedTrack>` - The fetched tracks.
@@ -356,6 +401,12 @@ impl LastFMHandler {
     /// * `file_path` - Path to the file to update.
     /// * `fetch_since` - Function to fetch tracks since a given timestamp.
     ///
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    ///
+    /// ## Panics
+    /// * If the file path is not valid UTF-8
+    ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the updated file.
     #[allow(dead_code)]
@@ -378,5 +429,50 @@ impl LastFMHandler {
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
 
         Ok(updated_file)
+    }
+
+    ///
+    /// # `export_recent_play_counts`
+    /// Export play counts for the last X songs with additional track information
+    ///
+    /// ## Arguments
+    /// * `limit` - Number of recent tracks to analyze
+    /// * `file_path` - Path to the file to save the play counts to
+    ///
+    /// ## Errors
+    /// * `FileError` - If there was an error reading or writing the file
+    ///
+    /// ## Returns
+    /// * `Result<String>` - Path to the saved JSON file containing play counts
+    pub async fn export_recent_play_counts(&self, limit: u32) -> Result<String> {
+        // Get recent tracks
+        let tracks = self.get_user_recent_tracks(Some(limit)).await?;
+
+        // Count plays and collect track info
+        let mut play_counts: HashMap<String, TrackPlayInfo> = HashMap::new();
+
+        for track in tracks {
+            let entry = play_counts
+                .entry(track.name.clone())
+                .or_insert(TrackPlayInfo {
+                    play_count: 0,
+                    artist: track.artist.text.clone(),
+                    album: Some(track.album.text.clone()),
+                    image_url: track
+                        .image
+                        .iter()
+                        .find(|img| img.size == "large")
+                        .map(|img| img.text.clone())
+                        .or_else(|| track.image.first().map(|img| img.text.clone())),
+                });
+
+            entry.play_count += 1;
+        }
+
+        // Save to file
+        let filename = FileHandler::save(&[play_counts], &FileFormat::Json, "play_counts")
+            .map_err(LastFmError::Io)?;
+
+        Ok(filename)
     }
 }

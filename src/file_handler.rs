@@ -1,8 +1,11 @@
 use chrono::Local;
 use csv::Writer;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{prelude::*, Result};
+
+use crate::lastfm_handler::TrackPlayInfo;
 
 #[allow(dead_code)]
 pub enum FileFormat {
@@ -22,11 +25,15 @@ impl FileHandler {
     /// * `format` - File format to save as
     /// * `filename_prefix` - Prefix for the filename
     ///
+    /// ## Errors
+    /// * `std::io::Error` - If the file cannot be opened or written to
+    /// * `serde_json::Error` - If the JSON cannot be serialized
+    ///
     /// ## Returns
     /// * `Result<String>` - Filename of the saved file
     pub fn save<T: Serialize>(
         data: &[T],
-        format: FileFormat,
+        format: &FileFormat,
         filename_prefix: &str,
     ) -> Result<String> {
         // Create data directory if it doesn't exist
@@ -47,7 +54,18 @@ impl FileHandler {
         );
 
         match format {
-            FileFormat::Json => Self::save_as_json(data, &filename),
+            FileFormat::Json => {
+                // Special case: if T is a HashMap with track info
+                if std::any::type_name::<T>()
+                    == std::any::type_name::<HashMap<String, TrackPlayInfo>>()
+                {
+                    if let Some(single_item) = data.first() {
+                        Self::save_single(single_item, &filename)?;
+                        return Ok(filename);
+                    }
+                }
+                Self::save_as_json(data, &filename)
+            }
             FileFormat::Csv => Self::save_as_csv(data, &filename),
         }?;
 
@@ -55,7 +73,7 @@ impl FileHandler {
     }
 
     ///
-    /// # save_as_json
+    /// # `save_as_json`
     /// Save data to a JSON file.
     ///
     /// ## Arguments
@@ -72,7 +90,7 @@ impl FileHandler {
     }
 
     ///
-    /// # save_as_csv
+    /// # `save_as_csv`
     /// Save data to a CSV file.
     ///
     /// ## Arguments
@@ -90,7 +108,7 @@ impl FileHandler {
     }
 
     ///
-    /// # append
+    /// # `append`
     /// Append data to an existing file.
     ///
     /// ## Arguments
@@ -106,6 +124,9 @@ impl FileHandler {
     /// ## Arguments
     /// * `data` - Data to append
     /// * `file_path` - Path to the file to append to
+    ///
+    /// ## Errors
+    /// * `std::io::Error` - If an I/O error occurs
     ///
     /// ## Returns
     /// * `Result<String>` - Path of the updated file
@@ -115,9 +136,15 @@ impl FileHandler {
         file_path: &str,
     ) -> Result<String> {
         // Determine file format from extension
-        let format = if file_path.ends_with(".json") {
+        let format = if std::path::Path::new(file_path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+        {
             FileFormat::Json
-        } else if file_path.ends_with(".csv") {
+        } else if std::path::Path::new(file_path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("csv"))
+        {
             FileFormat::Csv
         } else {
             return Err(std::io::Error::new(
@@ -149,5 +176,22 @@ impl FileHandler {
         }
 
         Ok(file_path.to_string())
+    }
+
+    /// # `save_single`
+    /// Save a single item to a JSON file
+    ///
+    /// ## Errors
+    /// * `std::io::Error` - If there was an error reading or writing the file
+    /// * `serde_json::Error` - If there was an error serializing the data
+    ///
+    /// ## Arguments
+    /// * `data` - Data to save
+    /// * `filename` - Filename to save as
+    pub fn save_single<T: Serialize>(data: &T, filename: &str) -> Result<()> {
+        let json = serde_json::to_string_pretty(data)?;
+        let mut file = File::create(filename)?;
+        file.write_all(json.as_bytes())?;
+        Ok(())
     }
 }
