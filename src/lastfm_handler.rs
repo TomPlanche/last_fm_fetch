@@ -1,10 +1,10 @@
 use crate::analytics::AnalysisHandler;
+use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::*;
 use crate::url_builder::{QueryParams, Url};
 
 use futures::future::join_all;
-use reqwest::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -93,11 +93,10 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<Vec<LovedTrack>, Error>` - The fetched tracks.
-    #[allow(dead_code)]
     pub async fn get_user_loved_tracks(
         &self,
         limit: impl Into<TrackLimit>,
-    ) -> Result<Vec<LovedTrack>, Error> {
+    ) -> Result<Vec<LovedTrack>> {
         self.get_user_tracks::<UserLovedTracks>("user.getlovedtracks", limit.into(), None)
             .await
     }
@@ -111,11 +110,10 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<Vec<RecentTrack>, Error>` - The fetched tracks.
-    #[allow(dead_code)]
     pub async fn get_user_recent_tracks(
         &self,
         limit: impl Into<TrackLimit>,
-    ) -> Result<Vec<RecentTrack>, Error> {
+    ) -> Result<Vec<RecentTrack>> {
         self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into(), None)
             .await
     }
@@ -135,7 +133,7 @@ impl LastFMHandler {
         method: &str,
         limit: TrackLimit,
         additional_params: Option<QueryParams>,
-    ) -> Result<Vec<T::StorageTrackType>, Error> {
+    ) -> Result<Vec<T::StorageTrackType>> {
         let mut params = self.base_options.clone();
         if let Some(additional_params) = additional_params {
             params.extend(additional_params);
@@ -205,7 +203,7 @@ impl LastFMHandler {
 
                     async move {
                         let response: T = self.fetch(method, &call_params).await?;
-                        Ok::<_, Error>(
+                        Ok::<_, LastFmError>(
                             response
                                 .tracks()
                                 .into_iter()
@@ -239,11 +237,7 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<T, Error>` - The fetched data.
-    async fn fetch<T: DeserializeOwned>(
-        &self,
-        method: &str,
-        params: &QueryParams,
-    ) -> Result<T, Error> {
+    async fn fetch<T: DeserializeOwned>(&self, method: &str, params: &QueryParams) -> Result<T> {
         let mut final_params = self.base_options.clone();
         final_params.insert("method".to_string(), method.to_string());
         final_params.extend(params.clone());
@@ -251,8 +245,15 @@ impl LastFMHandler {
         let base_url = self.url.clone().add_args(final_params).build();
 
         let response = reqwest::get(&base_url).await?;
-        let parsed_response = response.json::<T>().await?;
 
+        // Check if the response is an error
+        if !response.status().is_success() {
+            let error: LastFmErrorResponse = response.json().await?;
+            return Err(LastFmError::Api(error));
+        }
+
+        // Try to parse the successful response
+        let parsed_response = response.json::<T>().await?;
         Ok(parsed_response)
     }
 
@@ -266,18 +267,16 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
-    #[allow(dead_code)]
     pub async fn get_and_save_recent_tracks(
         &self,
         limit: impl Into<TrackLimit>,
         format: FileFormat,
         filename_prefix: &str,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String> {
         let tracks = self.get_user_recent_tracks(limit).await?;
-
         println!("Saving {} tracks to file", tracks.len());
-
-        let filename = FileHandler::save(&tracks, format, filename_prefix)?;
+        let filename =
+            FileHandler::save(&tracks, format, filename_prefix).map_err(LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -291,14 +290,14 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
-    #[allow(dead_code)]
     pub async fn get_and_save_loved_tracks(
         &self,
         limit: impl Into<TrackLimit>,
         format: FileFormat,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String> {
         let tracks = self.get_user_loved_tracks(limit).await?;
-        let filename = FileHandler::save(&tracks, format, "loved_tracks")?;
+        let filename =
+            FileHandler::save(&tracks, format, "loved_tracks").map_err(LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -317,7 +316,7 @@ impl LastFMHandler {
         &self,
         timestamp: u32,
         limit: impl Into<TrackLimit>,
-    ) -> Result<Vec<RecentTrack>, Error> {
+    ) -> Result<Vec<RecentTrack>> {
         let mut params = QueryParams::new();
         params.insert("from".to_string(), timestamp.to_string());
 
@@ -340,7 +339,7 @@ impl LastFMHandler {
         &self,
         timestamp: u32,
         limit: impl Into<TrackLimit>,
-    ) -> Result<Vec<LovedTrack>, Error> {
+    ) -> Result<Vec<LovedTrack>> {
         let tracks = self.get_user_loved_tracks(limit).await?;
 
         Ok(tracks
@@ -363,7 +362,7 @@ impl LastFMHandler {
     pub async fn update_tracks_file<T: DeserializeOwned + Serialize + Timestamped>(
         &self,
         file_path: &Path,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String> {
         // Get the most recent timestamp from the file
         let last_timestamp =
             AnalysisHandler::get_most_recent_timestamp::<T>(file_path)?.unwrap_or(0);
@@ -375,7 +374,7 @@ impl LastFMHandler {
 
         let file_path_str = file_path.to_str().unwrap();
 
-        // // Append the new tracks to the file
+        // Append the new tracks to the file
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
 
         Ok(updated_file)

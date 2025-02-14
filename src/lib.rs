@@ -1,5 +1,3 @@
-use serde::Serialize;
-
 #[path = "analytics.rs"]
 pub mod analytics;
 
@@ -15,7 +13,5 @@ pub mod types;
 #[path = "url_builder.rs"]
 pub mod url_builder;
 
-#[derive(Serialize)]
-pub enum LastFmError {
-    NoTracks,
-}
+#[path = "error.rs"]
+pub mod error;
