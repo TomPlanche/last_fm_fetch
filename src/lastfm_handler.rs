@@ -444,9 +444,9 @@ impl LastFMHandler {
     ///
     /// ## Returns
     /// * `Result<String>` - Path to the saved JSON file containing play counts
-    pub async fn export_recent_play_counts(&self, limit: u32) -> Result<String> {
+    pub async fn export_recent_play_counts(&self, limit: impl Into<TrackLimit>) -> Result<String> {
         // Get recent tracks
-        let tracks = self.get_user_recent_tracks(Some(limit)).await?;
+        let tracks = self.get_user_recent_tracks(limit.into()).await?;
 
         // Count plays and collect track info
         let mut play_counts: HashMap<String, TrackPlayInfo> = HashMap::new();
