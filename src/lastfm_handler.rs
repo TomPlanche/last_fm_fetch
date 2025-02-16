@@ -77,7 +77,7 @@ pub struct TrackPlayInfo {
     image_url: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LastFMHandler {
     url: Url,
     base_options: QueryParams,
