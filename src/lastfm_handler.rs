@@ -71,6 +71,7 @@ impl TrackContainer for UserRecentTracks {
 /// Represents a track's play count information
 #[derive(Debug, Serialize)]
 pub struct TrackPlayInfo {
+    name: String,
     play_count: u32,
     artist: String,
     album: Option<String>,
@@ -456,6 +457,7 @@ impl LastFMHandler {
             let entry = play_counts
                 .entry(track.name.clone())
                 .or_insert(TrackPlayInfo {
+                    name: track.name.clone(),
                     play_count: 0,
                     artist: track.artist.text.clone(),
                     album: Some(track.album.text.clone()),
@@ -470,8 +472,11 @@ impl LastFMHandler {
             entry.play_count += 1;
         }
 
+        // Convert HashMap values into a Vec
+        let play_counts_vec: Vec<TrackPlayInfo> = play_counts.into_values().collect();
+
         // Save to file
-        let filename = FileHandler::save(&[play_counts], &FileFormat::Json, "play_counts")
+        let filename = FileHandler::save(&[play_counts_vec], &FileFormat::Json, "play_counts")
             .map_err(LastFmError::Io)?;
 
         Ok(filename)
@@ -505,6 +510,7 @@ impl LastFMHandler {
             let entry = play_counts
                 .entry(track.name.clone())
                 .or_insert(TrackPlayInfo {
+                    name: track.name.clone(),
                     play_count: 0,
                     artist: track.artist.text.clone(),
                     album: Some(track.album.text.clone()),
@@ -519,9 +525,12 @@ impl LastFMHandler {
             entry.play_count += 1;
         }
 
+        // Convert HashMap values into a Vec
+        let play_counts_vec: Vec<TrackPlayInfo> = play_counts.into_values().collect();
+
         // Create the file (overwriting if it exists)
         let file = File::create(file_path).map_err(LastFmError::Io)?;
-        serde_json::to_writer_pretty(file, &play_counts).map_err(LastFmError::Parse)?;
+        serde_json::to_writer_pretty(file, &play_counts_vec).map_err(LastFmError::Parse)?;
 
         Ok(file_path.to_string())
     }
