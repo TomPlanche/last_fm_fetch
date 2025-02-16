@@ -12,6 +12,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
+use std::fs::File;
 
 const BASE_URL: &str = "https://ws.audioscrobbler.com/2.0/";
 
@@ -474,5 +475,54 @@ impl LastFMHandler {
             .map_err(LastFmError::Io)?;
 
         Ok(filename)
+    }
+
+    /// # `update_recent_play_counts`
+    /// Update or create a file with play counts for the last X songs with additional track information
+    ///
+    /// ## Arguments
+    /// * `limit` - Number of recent tracks to analyze
+    /// * `file_path` - Path to the file to update/create
+    ///
+    /// ## Errors
+    /// * `LastFmError::Api` - If the API returns an error
+    /// * `LastFmError::Io` - If there is an error reading or writing the file
+    ///
+    /// ## Returns
+    /// * `Result<String>` - Path to the updated/created JSON file containing play counts
+    pub async fn update_recent_play_counts(
+        &self,
+        limit: impl Into<TrackLimit>,
+        file_path: &str,
+    ) -> Result<String> {
+        // Get recent tracks
+        let tracks = self.get_user_recent_tracks(limit.into()).await?;
+
+        // Count plays and collect track info
+        let mut play_counts: HashMap<String, TrackPlayInfo> = HashMap::new();
+
+        for track in tracks {
+            let entry = play_counts
+                .entry(track.name.clone())
+                .or_insert(TrackPlayInfo {
+                    play_count: 0,
+                    artist: track.artist.text.clone(),
+                    album: Some(track.album.text.clone()),
+                    image_url: track
+                        .image
+                        .iter()
+                        .find(|img| img.size == "large")
+                        .map(|img| img.text.clone())
+                        .or_else(|| track.image.first().map(|img| img.text.clone())),
+                });
+
+            entry.play_count += 1;
+        }
+
+        // Create the file (overwriting if it exists)
+        let file = File::create(file_path).map_err(LastFmError::Io)?;
+        serde_json::to_writer_pretty(file, &play_counts).map_err(LastFmError::Parse)?;
+
+        Ok(file_path.to_string())
     }
 }
