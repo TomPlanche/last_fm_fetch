@@ -517,7 +517,7 @@ impl LastFMHandler {
                     image_url: track
                         .image
                         .iter()
-                        .find(|img| img.size == "large")
+                        .find(|img| img.size == "extralarge") // Best size for album art
                         .map(|img| img.text.clone())
                         .or_else(|| track.image.first().map(|img| img.text.clone())),
                 });
