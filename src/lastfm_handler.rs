@@ -560,4 +560,34 @@ impl LastFMHandler {
             }
         }))
     }
+
+    /// # `update_currently_listening`
+    /// Update a file with the currently playing track information
+    ///
+    /// ## Arguments
+    /// * `file_path` - Path to the file to update
+    ///
+    /// ## Errors
+    /// * `LastFmError::Api` - If the API returns an error
+    /// * `LastFmError::Io` - If there is an error reading or writing the file
+    /// * `LastFmError::Parse` - If there is an error parsing the JSON
+    ///
+    /// ## Returns
+    /// * `Result<Option<RecentTrack>>` - The currently playing track if any
+    pub async fn update_currently_listening(&self, file_path: &str) -> Result<Option<RecentTrack>> {
+        let current_track = self.is_currently_playing().await?;
+
+        // Create or overwrite the file
+        let file = File::create(file_path).map_err(LastFmError::Io)?;
+
+        if let Some(track) = &current_track {
+            serde_json::to_writer_pretty(file, track).map_err(LastFmError::Parse)?;
+        } else {
+            // Write an empty object when no track is playing
+            serde_json::to_writer_pretty(file, &serde_json::json!({}))
+                .map_err(LastFmError::Parse)?;
+        }
+
+        Ok(current_track)
+    }
 }
