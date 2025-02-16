@@ -11,8 +11,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
-use std::path::Path;
 use std::fs::File;
+use std::path::Path;
 
 const BASE_URL: &str = "https://ws.audioscrobbler.com/2.0/";
 
@@ -524,5 +524,40 @@ impl LastFMHandler {
         serde_json::to_writer_pretty(file, &play_counts).map_err(LastFmError::Parse)?;
 
         Ok(file_path.to_string())
+    }
+
+    /// # `is_currently_playing`
+    /// Check if the user is currently playing a track
+    ///
+    /// ## Errors
+    /// * `LastFmError` - If there was an error communicating with Last.fm
+    ///
+    /// ## Returns
+    /// * `Result<Option<RecentTrack>>` - The currently playing track if any
+    pub async fn is_currently_playing(&self) -> Result<Option<RecentTrack>> {
+        let mut params = QueryParams::new();
+        params.insert("limit".to_string(), "1".to_string());
+
+        let tracks = self
+            .get_user_tracks::<UserRecentTracks>(
+                "user.getrecenttracks",
+                TrackLimit::Limited(1),
+                Some(params),
+            )
+            .await?;
+
+        // Check if the first track has the "now playing" attribute
+        Ok(tracks.first().and_then(|track| {
+            if track
+                .attr
+                .as_ref()
+                .and_then(|attrs| attrs.get("nowplaying"))
+                .is_some_and(|val| val == "true")
+            {
+                Some(track.clone())
+            } else {
+                None
+            }
+        }))
     }
 }
