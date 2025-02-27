@@ -76,6 +76,7 @@ pub struct TrackPlayInfo {
     artist: String,
     album: Option<String>,
     image_url: Option<String>,
+    currently_playing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -467,6 +468,7 @@ impl LastFMHandler {
                         .find(|img| img.size == "large")
                         .map(|img| img.text.clone())
                         .or_else(|| track.image.first().map(|img| img.text.clone())),
+                    currently_playing: track.attr.is_some_and(|attr| attr.nowplaying == "true"),
                 });
 
             entry.play_count += 1;
@@ -520,6 +522,10 @@ impl LastFMHandler {
                         .find(|img| img.size == "extralarge") // Best size for album art
                         .map(|img| img.text.clone())
                         .or_else(|| track.image.first().map(|img| img.text.clone())),
+                    currently_playing: track
+                        .attr
+                        .as_ref()
+                        .is_some_and(|val| val.nowplaying == "true"),
                 });
 
             entry.play_count += 1;
@@ -560,8 +566,7 @@ impl LastFMHandler {
             if track
                 .attr
                 .as_ref()
-                .and_then(|attrs| attrs.get("nowplaying"))
-                .is_some_and(|val| val == "true")
+                .is_some_and(|val| val.nowplaying == "true")
             {
                 Some(track.clone())
             } else {

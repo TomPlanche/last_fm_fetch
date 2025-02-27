@@ -154,6 +154,11 @@ pub struct UserRecentTracks {
     pub recenttracks: RecentTracks,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Attributes {
+    pub nowplaying: String,
+}
+
 // API response structs
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiRecentTrack {
@@ -163,7 +168,7 @@ pub struct ApiRecentTrack {
     pub image: Vec<TrackImage>,
     pub album: BaseMbidText,
     #[serde(rename = "@attr")]
-    pub attr: Option<HashMap<String, String>>,
+    pub attr: Option<Attributes>,
     pub date: Option<ApiDate>,
     pub name: String,
     pub mbid: String,
@@ -185,7 +190,7 @@ pub struct RecentTrack {
     pub streamable: bool,
     pub image: Vec<TrackImage>,
     pub album: BaseMbidText,
-    pub attr: Option<HashMap<String, String>>,
+    pub attr: Option<Attributes>,
     pub date: Option<Date>,
     pub name: String,
     pub mbid: String,
