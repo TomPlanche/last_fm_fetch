@@ -77,6 +77,7 @@ pub struct TrackPlayInfo {
     album: Option<String>,
     image_url: Option<String>,
     currently_playing: bool,
+    date: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -469,6 +470,7 @@ impl LastFMHandler {
                         .map(|img| img.text.clone())
                         .or_else(|| track.image.first().map(|img| img.text.clone())),
                     currently_playing: track.attr.is_some_and(|attr| attr.nowplaying == "true"),
+                    date: track.date.map(|date| date.uts),
                 });
 
             entry.play_count += 1;
@@ -526,6 +528,7 @@ impl LastFMHandler {
                         .attr
                         .as_ref()
                         .is_some_and(|val| val.nowplaying == "true"),
+                    date: track.date.map(|date| date.uts),
                 });
 
             entry.play_count += 1;
