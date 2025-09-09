@@ -6,7 +6,6 @@ use crate::types::{
 };
 use crate::url_builder::{QueryParams, Url};
 
-use chrono::{Datelike, Duration, TimeZone, Utc, Weekday};
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
