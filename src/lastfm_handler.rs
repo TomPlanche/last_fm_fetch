@@ -2,7 +2,8 @@ use crate::analytics::AnalysisHandler;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    ApiRecentTrack, LovedTrack, RecentTrack, Timestamped, UserLovedTracks, UserRecentTracks,
+    ApiRecentTrack, LovedTrack, RecentTrack, Timestamped, TopTrack, UserLovedTracks,
+    UserRecentTracks, UserTopTracks,
 };
 use crate::url_builder::{QueryParams, Url};
 
@@ -20,6 +21,30 @@ const API_MAX_LIMIT: u32 = 1000;
 
 const CHUNK_MULTIPLIER: u32 = 5;
 const CHUNK_SIZE: u32 = API_MAX_LIMIT * CHUNK_MULTIPLIER;
+
+/// Period options for Last.fm time range filters
+#[derive(Debug, Clone, Copy)]
+pub enum Period {
+    Overall,
+    Week,
+    Month,
+    ThreeMonth,
+    SixMonth,
+    TwelveMonth,
+}
+
+impl Period {
+    fn as_api_str(self) -> &'static str {
+        match self {
+            Period::Overall => "overall",
+            Period::Week => "7day",
+            Period::Month => "1month",
+            Period::ThreeMonth => "3month",
+            Period::SixMonth => "6month",
+            Period::TwelveMonth => "12month",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TrackLimit {
@@ -68,6 +93,18 @@ impl TrackContainer for UserRecentTracks {
     }
 }
 
+impl TrackContainer for UserTopTracks {
+    type ApiTrackType = TopTrack;
+    type StorageTrackType = TopTrack;
+
+    fn total_tracks(&self) -> u32 {
+        self.toptracks.attr.total
+    }
+    fn tracks(self) -> Vec<Self::ApiTrackType> {
+        self.toptracks.track
+    }
+}
+
 /// Represents a track's play count information
 #[derive(Debug, Serialize)]
 pub struct TrackPlayInfo {
@@ -88,16 +125,15 @@ pub struct LastFMHandler {
 }
 
 impl LastFMHandler {
-    /// # `new`
     /// Creates a new `LastFMHandler` instance.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `username` - The Last.fm username.
     ///
-    /// ## Panics
+    /// # Panics
     /// Panics if the environment variable `LAST_FM_API_KEY` is not set.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Self` - The created `LastFMHandler` instance.
     #[must_use]
     pub fn new(username: &str) -> Self {
@@ -112,17 +148,15 @@ impl LastFMHandler {
         LastFMHandler { url, base_options }
     }
 
-    ///
-    /// # `get_user_loved_tracks`
     /// Get loved tracks for a user.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
-    /// ## Errors
+    /// # Errors
     /// Returns an error if the API request fails.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<Vec<LovedTrack>, Error>` - The fetched tracks.
     pub async fn get_user_loved_tracks(
         &self,
@@ -132,17 +166,15 @@ impl LastFMHandler {
             .await
     }
 
-    ///
-    /// # `get_user_recent_tracks`
     /// Get recent tracks for a user.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
-    /// ## Errors
+    /// # Errors
     /// Returns an error if the API request fails.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<Vec<RecentTrack>, Error>` - The fetched tracks.
     pub async fn get_user_recent_tracks(
         &self,
@@ -152,15 +184,40 @@ impl LastFMHandler {
             .await
     }
 
+    /// Get top tracks for a user.
     ///
-    /// # `get_user_tracks`
+    /// # Arguments
+    /// * `limit` - The number of tracks to fetch. If None, fetch all available top tracks.
+    /// * `period` - Optional period filter
+    ///   (`Period::Overall`, `Period::SevenDay`, `Period::OneMonth`,
+    ///   `Period::ThreeMonth`, `Period::SixMonth`, `Period::TwelveMonth`)
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<TopTrack>>` - The fetched tracks.
+    pub async fn get_user_top_tracks(
+        &self,
+        limit: impl Into<TrackLimit>,
+        period: Option<Period>,
+    ) -> Result<Vec<TopTrack>> {
+        let mut params = QueryParams::new();
+        if let Some(p) = period {
+            params.insert("period".to_string(), p.as_api_str().to_string());
+        }
+
+        self.get_user_tracks::<UserTopTracks>("user.gettoptracks", limit.into(), Some(params))
+            .await
+    }
+
     /// Get tracks for a user.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `method` - The method to call.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<Vec<T::TrackType>, Error>` - The fetched tracks.
     async fn get_user_tracks<T: DeserializeOwned + TrackContainer>(
         &self,
@@ -261,15 +318,13 @@ impl LastFMHandler {
         Ok(all_tracks)
     }
 
-    ///
-    /// # fetch
     /// Fetch data from the `LastFM` API.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `method` - The method to call.
     /// * `params` - The parameters to pass to the API.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<T, Error>` - The fetched data.
     async fn fetch<T: DeserializeOwned>(&self, method: &str, params: &QueryParams) -> Result<T> {
         let mut final_params = self.base_options.clone();
@@ -291,19 +346,17 @@ impl LastFMHandler {
         Ok(parsed_response)
     }
 
-    ///
-    /// # `get_and_save_recent_tracks`
     /// Get and save recent tracks to a file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     /// * `format` - The file format to save the tracks in.
     ///
-    /// ## Errors
+    /// # Errors
     /// * `LastFmError::Api` - If the API returns an error.
     /// * `LastFmError::Io` - If there is an error saving the file.
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
     pub async fn get_and_save_recent_tracks(
         &self,
@@ -318,19 +371,17 @@ impl LastFMHandler {
         Ok(filename)
     }
 
-    ///
-    /// # `get_and_save_loved_tracks`
     /// Get and save loved tracks to a file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     /// * `format` - The file format to save the tracks in.
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the saved file.
     pub async fn get_and_save_loved_tracks(
         &self,
@@ -343,19 +394,17 @@ impl LastFMHandler {
         Ok(filename)
     }
 
-    ///
-    /// # `get_user_recent_tracks_since`
     /// Get recent tracks for a user since a given timestamp.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `timestamp` - The timestamp to fetch tracks since.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Vec<RecentTrack>` - The fetched tracks.
     #[allow(dead_code)]
     pub async fn get_user_recent_tracks_since(
@@ -370,19 +419,17 @@ impl LastFMHandler {
             .await
     }
 
-    ///
-    /// # `get_user_loved_tracks_since`
     /// Get loved tracks for a user since a given timestamp.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `timestamp` - The timestamp to fetch tracks since.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Vec<LovedTrack>` - The fetched tracks.
     #[allow(dead_code)]
     pub async fn get_user_loved_tracks_since(
@@ -398,21 +445,19 @@ impl LastFMHandler {
             .collect())
     }
 
-    ///
-    /// # `update_tracks_file`
     /// Update a tracks file with new tracks.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `file_path` - Path to the file to update.
     /// * `fetch_since` - Function to fetch tracks since a given timestamp.
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     ///
-    /// ## Panics
+    /// # Panics
     /// * If the file path is not valid UTF-8
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String, Box<dyn std::error::Error>>` - The filename of the updated file.
     #[allow(dead_code)]
     pub async fn update_tracks_file<T: DeserializeOwned + Serialize + Timestamped>(
@@ -436,18 +481,16 @@ impl LastFMHandler {
         Ok(updated_file)
     }
 
-    ///
-    /// # `export_recent_play_counts`
     /// Export play counts for the last X songs with additional track information
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - Number of recent tracks to analyze
     /// * `file_path` - Path to the file to save the play counts to
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String>` - Path to the saved JSON file containing play counts
     pub async fn export_recent_play_counts(&self, limit: impl Into<TrackLimit>) -> Result<String> {
         // Get recent tracks
@@ -488,18 +531,17 @@ impl LastFMHandler {
         Ok(filename)
     }
 
-    /// # `update_recent_play_counts`
     /// Update or create a file with play counts for the last X songs with additional track information
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `limit` - Number of recent tracks to analyze
     /// * `file_path` - Path to the file to update/create
     ///
-    /// ## Errors
+    /// # Errors
     /// * `LastFmError::Api` - If the API returns an error
     /// * `LastFmError::Io` - If there is an error reading or writing the file
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String>` - Path to the updated/created JSON file containing play counts
     pub async fn update_recent_play_counts(
         &self,
@@ -547,13 +589,12 @@ impl LastFMHandler {
         Ok(file_path.to_string())
     }
 
-    /// # `is_currently_playing`
     /// Check if the user is currently playing a track
     ///
-    /// ## Errors
+    /// # Errors
     /// * `LastFmError` - If there was an error communicating with Last.fm
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<Option<RecentTrack>>` - The currently playing track if any
     pub async fn is_currently_playing(&self) -> Result<Option<RecentTrack>> {
         let mut params = QueryParams::new();
@@ -581,18 +622,17 @@ impl LastFMHandler {
         }))
     }
 
-    /// # `update_currently_listening`
     /// Update a file with the currently playing track information
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `file_path` - Path to the file to update
     ///
-    /// ## Errors
+    /// # Errors
     /// * `LastFmError::Api` - If the API returns an error
     /// * `LastFmError::Io` - If there is an error reading or writing the file
     /// * `LastFmError::Parse` - If there is an error parsing the JSON
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<Option<RecentTrack>>` - The currently playing track if any
     pub async fn update_currently_listening(&self, file_path: &str) -> Result<Option<RecentTrack>> {
         let current_track = self.is_currently_playing().await?;

@@ -63,18 +63,17 @@ pub struct TrackStats {
 pub struct AnalysisHandler;
 
 impl AnalysisHandler {
-    /// # `analyze_file`
     /// Analyze tracks from a JSON file
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `filename` - Path to the JSON file
     /// * `threshold` - Threshold for counting tracks with plays below this number
     ///
-    /// ## Errors
+    /// # Errors
     /// * `FileError` - If there was an error reading or writing the file
     /// * `InvalidUtf8` - If the file path is not valid UTF-8
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<TrackStats, Box<dyn std::error::Error>>` - Analysis results
     pub fn analyze_file<T: DeserializeOwned + TrackAnalyzable>(
         file_path: &Path,
@@ -145,10 +144,9 @@ impl AnalysisHandler {
         }
     }
 
-    /// # `print_analysis`
     /// Print analysis results in a formatted way
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `stats` - `TrackStats` to print
     pub fn print_analysis(stats: &TrackStats) {
         println!("=== Track Analysis ===");
@@ -187,18 +185,16 @@ impl AnalysisHandler {
         );
     }
 
-    ///
-    /// # `get_most_recent_timestamp`
     /// Get the most recent timestamp from a JSON file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `file_path` - Path to the JSON file
     ///
-    /// ## Errors
+    /// # Errors
     /// * `std::io::Error` - If the file cannot be opened or read
     /// * `serde_json::Error` - If the JSON cannot be deserialized
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Option<i64>` - Most recent timestamp
     #[allow(dead_code)]
     pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(

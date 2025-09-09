@@ -16,20 +16,18 @@ pub enum FileFormat {
 pub struct FileHandler;
 
 impl FileHandler {
-    ///
-    /// # save
     /// Save data to a file in the data directory.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to save
     /// * `format` - File format to save as
     /// * `filename_prefix` - Prefix for the filename
     ///
-    /// ## Errors
+    /// # Errors
     /// * `std::io::Error` - If the file cannot be opened or written to
     /// * `serde_json::Error` - If the JSON cannot be serialized
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String>` - Filename of the saved file
     pub fn save<T: Serialize>(
         data: &[T],
@@ -72,11 +70,9 @@ impl FileHandler {
         Ok(filename)
     }
 
-    ///
-    /// # `save_as_json`
     /// Save data to a JSON file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to save
     /// * `filename` - Filename to save as
     #[allow(dead_code)]
@@ -89,11 +85,9 @@ impl FileHandler {
         Ok(())
     }
 
-    ///
-    /// # `save_as_csv`
     /// Save data to a CSV file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to save
     /// * `filename` - Filename to save as
     fn save_as_csv<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
@@ -107,28 +101,25 @@ impl FileHandler {
         Ok(())
     }
 
-    ///
-    /// # `append`
     /// Append data to an existing file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to append
     /// * `file_path` - Path to the file to append to
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String>` - Path of the updated file
     ///
-    /// # append
     /// Append data to an existing file.
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to append
     /// * `file_path` - Path to the file to append to
     ///
-    /// ## Errors
+    /// # Errors
     /// * `std::io::Error` - If an I/O error occurs
     ///
-    /// ## Returns
+    /// # Returns
     /// * `Result<String>` - Path of the updated file
     #[allow(dead_code)]
     pub fn append<T: Serialize + for<'de> serde::Deserialize<'de> + Clone>(
@@ -178,14 +169,13 @@ impl FileHandler {
         Ok(file_path.to_string())
     }
 
-    /// # `save_single`
     /// Save a single item to a JSON file
     ///
-    /// ## Errors
+    /// # Errors
     /// * `std::io::Error` - If there was an error reading or writing the file
     /// * `serde_json::Error` - If there was an error serializing the data
     ///
-    /// ## Arguments
+    /// # Arguments
     /// * `data` - Data to save
     /// * `filename` - Filename to save as
     pub fn save_single<T: Serialize>(data: &T, filename: &str) -> Result<()> {

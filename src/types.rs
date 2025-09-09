@@ -246,3 +246,37 @@ impl Timestamped for LovedTrack {
         Some(self.date.uts)
     }
 }
+
+// TOP TRACKS SCHEMAS =========================================================
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RankAttr {
+    pub rank: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TopTrack {
+    pub streamable: Streamable,
+    pub mbid: String,
+    pub name: String,
+    pub image: Vec<TrackImage>,
+    pub artist: BaseObject,
+    pub url: String,
+    #[serde(deserialize_with = "u32_from_str")]
+    pub duration: u32,
+    #[serde(rename = "@attr")]
+    pub attr: RankAttr,
+    #[serde(deserialize_with = "u32_from_str")]
+    pub playcount: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TopTracks {
+    pub track: Vec<TopTrack>,
+    #[serde(rename = "@attr")]
+    pub attr: BaseResponse,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserTopTracks {
+    pub toptracks: TopTracks,
+}
