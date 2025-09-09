@@ -6,6 +6,7 @@ use crate::types::{
 };
 use crate::url_builder::{QueryParams, Url};
 
+use chrono::{Datelike, Duration, TimeZone, Utc, Weekday};
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -71,14 +72,14 @@ impl TrackContainer for UserRecentTracks {
 /// Represents a track's play count information
 #[derive(Debug, Serialize)]
 pub struct TrackPlayInfo {
-    name: String,
-    play_count: u32,
-    artist: String,
-    album: Option<String>,
-    image_url: Option<String>,
-    currently_playing: bool,
-    date: Option<u32>,
-    url: String,
+    pub name: String,
+    pub play_count: u32,
+    pub artist: String,
+    pub album: Option<String>,
+    pub image_url: Option<String>,
+    pub currently_playing: bool,
+    pub date: Option<u32>,
+    pub url: String,
 }
 
 #[derive(Debug, Clone)]
@@ -360,7 +361,7 @@ impl LastFMHandler {
     #[allow(dead_code)]
     pub async fn get_user_recent_tracks_since(
         &self,
-        timestamp: u32,
+        timestamp: i64,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>> {
         let mut params = QueryParams::new();

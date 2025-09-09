@@ -199,11 +199,11 @@ impl AnalysisHandler {
     /// * `serde_json::Error` - If the JSON cannot be deserialized
     ///
     /// ## Returns
-    /// * `Option<u32>` - Most recent timestamp
+    /// * `Option<i64>` - Most recent timestamp
     #[allow(dead_code)]
     pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(
         file_path: &Path,
-    ) -> Result<Option<u32>, Box<dyn std::error::Error>> {
+    ) -> Result<Option<i64>, Box<dyn std::error::Error>> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
         let tracks: Vec<T> = serde_json::from_reader(reader)?;
@@ -211,6 +211,7 @@ impl AnalysisHandler {
         Ok(tracks
             .iter()
             .filter_map(super::types::Timestamped::get_timestamp)
+            .map(i64::from)
             .max())
     }
 }
