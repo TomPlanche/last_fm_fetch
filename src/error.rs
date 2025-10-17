@@ -18,6 +18,8 @@ pub enum LastFmError {
     Parse(serde_json::Error),
     /// Represents file I/O errors
     Io(std::io::Error),
+    /// Represents missing environment variable errors
+    MissingEnvVar(String),
     /// Represents other errors
     Other(String),
 }
@@ -31,6 +33,11 @@ impl fmt::Display for LastFmError {
             LastFmError::Http(e) => write!(f, "HTTP error: {e}"),
             LastFmError::Parse(e) => write!(f, "Parse error: {e}"),
             LastFmError::Io(e) => write!(f, "I/O error: {e}"),
+            LastFmError::MissingEnvVar(var) => write!(
+                f,
+                "Missing required environment variable: {var}\n\
+                 Please set it in your environment or .env file"
+            ),
             LastFmError::Other(e) => write!(f, "Error: {e}"),
         }
     }

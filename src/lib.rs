@@ -1,6 +1,9 @@
 #[path = "analytics.rs"]
 pub mod analytics;
 
+#[path = "config.rs"]
+pub mod config;
+
 #[path = "file_handler.rs"]
 pub mod file_handler;
 

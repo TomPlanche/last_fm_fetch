@@ -1,4 +1,5 @@
 use crate::analytics::AnalysisHandler;
+use crate::config;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
@@ -11,7 +12,6 @@ use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::path::Path;
 
@@ -130,22 +130,23 @@ impl LastFMHandler {
     /// # Arguments
     /// * `username` - The Last.fm username.
     ///
-    /// # Panics
-    /// Panics if the environment variable `LAST_FM_API_KEY` is not set.
+    /// # Errors
+    /// Returns `LastFmError::MissingEnvVar` if the environment variable `LAST_FM_API_KEY` is not set.
     ///
     /// # Returns
-    /// * `Self` - The created `LastFMHandler` instance.
-    #[must_use]
-    pub fn new(username: &str) -> Self {
+    /// * `Result<Self>` - The created `LastFMHandler` instance.
+    pub fn new(username: &str) -> Result<Self> {
+        let api_key = config::get_required_env_var("LAST_FM_API_KEY")?;
+
         let mut base_options = QueryParams::new();
-        base_options.insert("api_key".to_string(), env::var("LAST_FM_API_KEY").unwrap());
+        base_options.insert("api_key".to_string(), api_key);
         base_options.insert("limit".to_string(), API_MAX_LIMIT.to_string());
         base_options.insert("format".to_string(), "json".to_string());
         base_options.insert("user".to_string(), username.to_string());
 
         let url = Url::new(BASE_URL);
 
-        LastFMHandler { url, base_options }
+        Ok(LastFMHandler { url, base_options })
     }
 
     /// Get loved tracks for a user.
