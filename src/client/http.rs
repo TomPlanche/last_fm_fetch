@@ -95,8 +95,7 @@ impl HttpClient for ReqwestClient {
         if !status.is_success() {
             #[cfg(debug_assertions)]
             eprintln!(
-                "HTTP error {} for URL: {}\nRaw body:\n{}",
-                status, url, body_text
+                "HTTP error {status} for URL: {url}\nRaw body:\n{body_text}"
             );
 
             // Try to parse as Last.fm API error response
@@ -153,8 +152,7 @@ impl HttpClient for ReqwestClient {
             Err(err) => {
                 #[cfg(debug_assertions)]
                 eprintln!(
-                    "JSON parse failed for URL: {}\nError: {}\nBody:\n{}",
-                    url, err, body_text
+                    "JSON parse failed for URL: {url}\nError: {err}\nBody:\n{body_text}"
                 );
                 Err(err.into())
             }

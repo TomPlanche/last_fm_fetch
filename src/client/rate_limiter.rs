@@ -77,7 +77,7 @@ impl RateLimiter {
         if let Some(duration) = sleep_time {
             if duration > Duration::ZERO {
                 #[cfg(debug_assertions)]
-                eprintln!("Rate limit reached, sleeping for {:?}", duration);
+                eprintln!("Rate limit reached, sleeping for {duration:?}");
 
                 tokio::time::sleep(duration).await;
             }
