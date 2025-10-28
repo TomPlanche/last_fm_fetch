@@ -593,6 +593,75 @@ impl LastFMHandler {
             .await
     }
 
+    /// Get all recent tracks for a user between two dates.
+    ///
+    /// Convenience method for fetching all tracks within a specific time range.
+    /// This always fetches unlimited tracks (all tracks in the range).
+    ///
+    /// # Arguments
+    /// * `from` - Start timestamp (Unix timestamp in seconds) - tracks from this time onwards.
+    /// * `to` - End timestamp (Unix timestamp in seconds) - tracks up until this time.
+    /// * `extended` - If `true`, fetches extended track information including additional artist details.
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<RecentTrack>>` - All fetched tracks in the date range (normal format).
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Get all tracks from January 2024
+    /// let start = Utc.ymd(2024, 1, 1).and_hms(0, 0, 0).timestamp();
+    /// let end = Utc.ymd(2024, 2, 1).and_hms(0, 0, 0).timestamp();
+    /// let tracks = handler.get_user_recent_tracks_between(start, end, false).await?;
+    ///
+    /// // Get all tracks from last week with extended info
+    /// let one_week_ago = (Utc::now() - Duration::days(7)).timestamp();
+    /// let now = Utc::now().timestamp();
+    /// let tracks = handler.get_user_recent_tracks_between(one_week_ago, now, true).await?;
+    /// ```
+    pub async fn get_user_recent_tracks_between(
+        &self,
+        from: i64,
+        to: i64,
+        extended: bool,
+    ) -> Result<Vec<RecentTrack>> {
+        self.get_user_recent_tracks_with_options(TrackLimit::Unlimited, Some(from), Some(to), extended)
+            .await
+    }
+
+    /// Get all recent tracks for a user between two dates with extended information.
+    ///
+    /// Convenience method for fetching all tracks with extended information within a specific time range.
+    /// This always fetches unlimited tracks (all tracks in the range) with extended data.
+    ///
+    /// # Arguments
+    /// * `from` - Start timestamp (Unix timestamp in seconds) - tracks from this time onwards.
+    /// * `to` - End timestamp (Unix timestamp in seconds) - tracks up until this time.
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<RecentTrackExtended>>` - All fetched tracks in the date range with extended information.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Get all tracks from January 2024 with extended info
+    /// let start = Utc.ymd(2024, 1, 1).and_hms(0, 0, 0).timestamp();
+    /// let end = Utc.ymd(2024, 2, 1).and_hms(0, 0, 0).timestamp();
+    /// let tracks = handler.get_user_recent_tracks_between_extended(start, end).await?;
+    /// ```
+    pub async fn get_user_recent_tracks_between_extended(
+        &self,
+        from: i64,
+        to: i64,
+    ) -> Result<Vec<RecentTrackExtended>> {
+        self.get_user_recent_tracks_extended(TrackLimit::Unlimited, Some(from), Some(to))
+            .await
+    }
+
     /// Get loved tracks for a user since a given timestamp.
     ///
     /// # Arguments

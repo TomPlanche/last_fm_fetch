@@ -144,6 +144,36 @@ let extended_tracks = handler
     .await?;
 ```
 
+#### Recent Tracks Between Dates
+
+Convenience methods for fetching all tracks within a specific time range:
+
+```rust
+use async_lastfm::LastFMHandler;
+use chrono::{Utc, Duration, TimeZone};
+
+let handler = LastFMHandler::new("username").unwrap();
+
+// Get all tracks from January 2024
+let start = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap().timestamp();
+let end = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap().timestamp();
+let tracks = handler
+    .get_user_recent_tracks_between(start, end, false)
+    .await?;
+
+// Get all tracks from last week with extended info
+let one_week_ago = (Utc::now() - Duration::days(7)).timestamp();
+let now = Utc::now().timestamp();
+let tracks = handler
+    .get_user_recent_tracks_between(one_week_ago, now, true)
+    .await?;
+
+// Get all tracks between dates with extended information
+let tracks = handler
+    .get_user_recent_tracks_between_extended(start, end)
+    .await?;
+```
+
 #### Top Tracks with Options
 
 ```rust
@@ -195,6 +225,53 @@ When using `get_user_top_tracks_with_options`, you can filter by these time peri
 - `Period::ThreeMonth` - Last 3 months
 - `Period::SixMonth` - Last 6 months
 - `Period::TwelveMonth` - Last 12 months
+
+## 📚 API Methods Reference
+
+### Recent Tracks Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `get_user_recent_tracks` | `limit` | `Vec<RecentTrack>` | Simple method to fetch recent tracks |
+| `get_user_recent_tracks_with_options` | `limit`, `from`, `to`, `extended` | `Vec<RecentTrack>` | Full control over all API parameters |
+| `get_user_recent_tracks_extended` | `limit`, `from`, `to` | `Vec<RecentTrackExtended>` | Fetch recent tracks with extended info |
+| `get_user_recent_tracks_since` | `from`, `to`, `limit` | `Vec<RecentTrack>` | Fetch tracks since a timestamp |
+| `get_user_recent_tracks_between` | `from`, `to`, `extended` | `Vec<RecentTrack>` | Fetch all tracks between two dates |
+| `get_user_recent_tracks_between_extended` | `from`, `to` | `Vec<RecentTrackExtended>` | Fetch all tracks between dates with extended info |
+
+### Top Tracks Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `get_user_top_tracks` | `limit`, `period` | `Vec<TopTrack>` | Simple method to fetch top tracks |
+| `get_user_top_tracks_with_options` | `limit`, `period` | `Vec<TopTrack>` | Full control over all API parameters |
+
+### Loved Tracks Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `get_user_loved_tracks` | `limit` | `Vec<LovedTrack>` | Simple method to fetch loved tracks |
+| `get_user_loved_tracks_with_options` | `limit` | `Vec<LovedTrack>` | Full control over all API parameters |
+| `get_user_loved_tracks_since` | `timestamp`, `limit` | `Vec<LovedTrack>` | Fetch loved tracks since a timestamp |
+
+### Helper Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `get_and_save_recent_tracks` | `limit`, `format`, `filename_prefix` | `Result<String>` | Fetch and save recent tracks to file |
+| `get_and_save_loved_tracks` | `limit`, `format` | `Result<String>` | Fetch and save loved tracks to file |
+| `export_recent_play_counts` | `limit` | `Result<String>` | Export play counts for recent tracks |
+| `update_recent_play_counts` | `limit`, `file_path` | `Result<String>` | Update play counts in existing file |
+| `is_currently_playing` | - | `Result<Option<RecentTrack>>` | Check if user is currently playing |
+| `update_currently_listening` | `file_path` | `Result<Option<RecentTrack>>` | Update currently listening file |
+
+### Parameter Types
+
+- **`limit`**: `impl Into<TrackLimit>` - Use `Some(n)` for limited tracks, `None` or `TrackLimit::Unlimited` for all
+- **`from`/`to`**: `Option<i64>` - Unix timestamps in seconds
+- **`extended`**: `bool` - Whether to fetch extended track information
+- **`period`**: `Option<Period>` - Time period filter (Week, Month, ThreeMonth, etc.)
+- **`format`**: `FileFormat` - `FileFormat::Json` or `FileFormat::Csv`
 
 ## 🧪 Testing
 
