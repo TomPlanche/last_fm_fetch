@@ -3,8 +3,9 @@ use crate::config;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    ApiRecentTrack, LovedTrack, RecentTrack, Timestamped, TopTrack, UserLovedTracks,
-    UserRecentTracks, UserTopTracks,
+    ApiRecentTrack, ApiRecentTrackExtended, LovedTrack, RecentTrack, RecentTrackExtended,
+    Timestamped, TopTrack, UserLovedTracks, UserRecentTracks, UserRecentTracksExtended,
+    UserTopTracks,
 };
 use crate::url_builder::{QueryParams, Url};
 
@@ -93,6 +94,18 @@ impl TrackContainer for UserRecentTracks {
     }
 }
 
+impl TrackContainer for UserRecentTracksExtended {
+    type ApiTrackType = ApiRecentTrackExtended;
+    type StorageTrackType = RecentTrackExtended;
+
+    fn total_tracks(&self) -> u32 {
+        self.recenttracks.attr.total
+    }
+    fn tracks(self) -> Vec<Self::ApiTrackType> {
+        self.recenttracks.track
+    }
+}
+
 impl TrackContainer for UserTopTracks {
     type ApiTrackType = TopTrack;
     type StorageTrackType = TopTrack;
@@ -149,6 +162,36 @@ impl LastFMHandler {
         Ok(LastFMHandler { url, base_options })
     }
 
+    /// Get loved tracks for a user with all available options.
+    ///
+    /// This is the most flexible method for fetching loved tracks, exposing all parameters
+    /// supported by the Last.fm API's `user.getlovedtracks` method.
+    ///
+    /// # Arguments
+    /// * `limit` - The number of tracks to fetch. Use `None` or `TrackLimit::Unlimited` to fetch all tracks.
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<LovedTrack>>` - The fetched loved tracks.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Get all loved tracks
+    /// let tracks = handler.get_user_loved_tracks_with_options(None).await?;
+    ///
+    /// // Get first 100 loved tracks
+    /// let tracks = handler.get_user_loved_tracks_with_options(Some(100)).await?;
+    /// ```
+    pub async fn get_user_loved_tracks_with_options(
+        &self,
+        limit: impl Into<TrackLimit>,
+    ) -> Result<Vec<LovedTrack>> {
+        self.get_user_tracks::<UserLovedTracks>("user.getlovedtracks", limit.into(), None)
+            .await
+    }
+
     /// Get loved tracks for a user.
     ///
     /// # Arguments
@@ -163,8 +206,7 @@ impl LastFMHandler {
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<LovedTrack>> {
-        self.get_user_tracks::<UserLovedTracks>("user.getlovedtracks", limit.into(), None)
-            .await
+        self.get_user_loved_tracks_with_options(limit).await
     }
 
     /// Get recent tracks for a user.
@@ -181,7 +223,53 @@ impl LastFMHandler {
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>> {
-        self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into(), None)
+        self.get_user_recent_tracks_with_options(limit, None, None, false)
+            .await
+    }
+
+    /// Get top tracks for a user with all available options.
+    ///
+    /// This is the most flexible method for fetching top tracks, exposing all parameters
+    /// supported by the Last.fm API's `user.gettoptracks` method.
+    ///
+    /// # Arguments
+    /// * `limit` - The number of tracks to fetch. Use `None` or `TrackLimit::Unlimited` to fetch all available top tracks.
+    /// * `period` - Optional period filter for the time range:
+    ///   - `Period::Overall` - All time (default if None)
+    ///   - `Period::Week` - Last 7 days
+    ///   - `Period::Month` - Last month
+    ///   - `Period::ThreeMonth` - Last 3 months
+    ///   - `Period::SixMonth` - Last 6 months
+    ///   - `Period::TwelveMonth` - Last 12 months
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<TopTrack>>` - The fetched top tracks.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Get all-time top 50 tracks
+    /// let tracks = handler.get_user_top_tracks_with_options(Some(50), None).await?;
+    ///
+    /// // Get top tracks from the last week
+    /// let tracks = handler.get_user_top_tracks_with_options(None, Some(Period::Week)).await?;
+    ///
+    /// // Get top 100 tracks from the last 3 months
+    /// let tracks = handler.get_user_top_tracks_with_options(Some(100), Some(Period::ThreeMonth)).await?;
+    /// ```
+    pub async fn get_user_top_tracks_with_options(
+        &self,
+        limit: impl Into<TrackLimit>,
+        period: Option<Period>,
+    ) -> Result<Vec<TopTrack>> {
+        let mut params = QueryParams::new();
+        if let Some(p) = period {
+            params.insert("period".to_string(), p.as_api_str().to_string());
+        }
+
+        self.get_user_tracks::<UserTopTracks>("user.gettoptracks", limit.into(), Some(params))
             .await
     }
 
@@ -203,13 +291,7 @@ impl LastFMHandler {
         limit: impl Into<TrackLimit>,
         period: Option<Period>,
     ) -> Result<Vec<TopTrack>> {
-        let mut params = QueryParams::new();
-        if let Some(p) = period {
-            params.insert("period".to_string(), p.as_api_str().to_string());
-        }
-
-        self.get_user_tracks::<UserTopTracks>("user.gettoptracks", limit.into(), Some(params))
-            .await
+        self.get_user_top_tracks_with_options(limit, period).await
     }
 
     /// Get tracks for a user.
@@ -398,7 +480,8 @@ impl LastFMHandler {
     /// Get recent tracks for a user since a given timestamp.
     ///
     /// # Arguments
-    /// * `timestamp` - The timestamp to fetch tracks since.
+    /// * `from` - The timestamp to fetch tracks since.
+    /// * `to` - Optional timestamp to fetch tracks until.
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
     /// # Errors
@@ -410,13 +493,103 @@ impl LastFMHandler {
     #[allow(dead_code)]
     pub async fn get_user_recent_tracks_since(
         &self,
-        timestamp: i64,
+        from: i64,
+        to: Option<i64>,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>> {
+        self.get_user_recent_tracks_with_options(limit, Some(from), to, false)
+            .await
+    }
+
+    /// Get recent tracks for a user with all available options.
+    ///
+    /// This is the most flexible method for fetching recent tracks, exposing all parameters
+    /// supported by the Last.fm API's `user.getrecenttracks` method.
+    ///
+    /// # Arguments
+    /// * `limit` - The number of tracks to fetch. Use `None` or `TrackLimit::Unlimited` to fetch all tracks.
+    /// * `from` - Optional timestamp (Unix timestamp in seconds) to fetch tracks from this time onwards.
+    /// * `to` - Optional timestamp (Unix timestamp in seconds) to fetch tracks up until this time.
+    /// * `extended` - If `true`, fetches extended track information including additional artist details.
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<RecentTrack>>` - The fetched tracks (normal format).
+    /// * `Result<Vec<RecentTrackExtended>>` - The fetched tracks (extended format) if `extended` is `true`.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// // Get last 50 tracks
+    /// let tracks = handler.get_user_recent_tracks_with_options(Some(50), None, None, false).await?;
+    ///
+    /// // Get tracks from the last week
+    /// let one_week_ago = (Utc::now() - Duration::days(7)).timestamp();
+    /// let tracks = handler.get_user_recent_tracks_with_options(None, Some(one_week_ago), None, false).await?;
+    ///
+    /// // Get tracks between two dates with extended info
+    /// let tracks = handler.get_user_recent_tracks_with_options(None, Some(start), Some(end), true).await?;
+    /// ```
+    pub async fn get_user_recent_tracks_with_options(
+        &self,
+        limit: impl Into<TrackLimit>,
+        from: Option<i64>,
+        to: Option<i64>,
+        extended: bool,
+    ) -> Result<Vec<RecentTrack>> {
         let mut params = QueryParams::new();
-        params.insert("from".to_string(), timestamp.to_string());
+
+        if let Some(from_timestamp) = from {
+            params.insert("from".to_string(), from_timestamp.to_string());
+        }
+
+        if let Some(to_timestamp) = to {
+            params.insert("to".to_string(), to_timestamp.to_string());
+        }
+
+        if extended {
+            params.insert("extended".to_string(), "1".to_string());
+        }
 
         self.get_user_tracks::<UserRecentTracks>("user.getrecenttracks", limit.into(), Some(params))
+            .await
+    }
+
+    /// Get recent tracks for a user with extended information.
+    ///
+    /// This method is similar to `get_user_recent_tracks_with_options` but returns
+    /// the extended track format which includes additional artist details.
+    ///
+    /// # Arguments
+    /// * `limit` - The number of tracks to fetch. Use `None` or `TrackLimit::Unlimited` to fetch all tracks.
+    /// * `from` - Optional timestamp (Unix timestamp in seconds) to fetch tracks from this time onwards.
+    /// * `to` - Optional timestamp (Unix timestamp in seconds) to fetch tracks up until this time.
+    ///
+    /// # Errors
+    /// Returns an error if the API request fails.
+    ///
+    /// # Returns
+    /// * `Result<Vec<RecentTrackExtended>>` - The fetched tracks with extended information.
+    pub async fn get_user_recent_tracks_extended(
+        &self,
+        limit: impl Into<TrackLimit>,
+        from: Option<i64>,
+        to: Option<i64>,
+    ) -> Result<Vec<RecentTrackExtended>> {
+        let mut params = QueryParams::new();
+
+        if let Some(from_timestamp) = from {
+            params.insert("from".to_string(), from_timestamp.to_string());
+        }
+
+        if let Some(to_timestamp) = to {
+            params.insert("to".to_string(), to_timestamp.to_string());
+        }
+
+        params.insert("extended".to_string(), "1".to_string());
+
+        self.get_user_tracks::<UserRecentTracksExtended>("user.getrecenttracks", limit.into(), Some(params))
             .await
     }
 
@@ -471,7 +644,7 @@ impl LastFMHandler {
 
         // Find the recent tracks in the file
         let recent_tracks = self
-            .get_user_recent_tracks_since(last_timestamp, None)
+            .get_user_recent_tracks_since(last_timestamp, None, None)
             .await?;
 
         let file_path_str = file_path.to_str().unwrap();

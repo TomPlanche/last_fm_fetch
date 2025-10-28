@@ -154,6 +154,18 @@ pub struct UserRecentTracks {
     pub recenttracks: RecentTracks,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecentTracksExtended {
+    pub track: Vec<ApiRecentTrackExtended>,
+    #[serde(rename = "@attr")]
+    pub attr: BaseResponse,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserRecentTracksExtended {
+    pub recenttracks: RecentTracksExtended,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Attributes {
     pub nowplaying: String,
@@ -230,6 +242,22 @@ impl From<ApiDate> for Date {
     }
 }
 
+impl From<ApiRecentTrackExtended> for RecentTrackExtended {
+    fn from(api_track: ApiRecentTrackExtended) -> Self {
+        RecentTrackExtended {
+            artist: api_track.artist,
+            streamable: api_track.streamable,
+            image: api_track.image,
+            album: api_track.album,
+            attr: api_track.attr,
+            date: api_track.date.map(std::convert::Into::into),
+            name: api_track.name,
+            mbid: api_track.mbid,
+            url: api_track.url,
+        }
+    }
+}
+
 pub trait Timestamped {
     #[allow(dead_code)]
     fn get_timestamp(&self) -> Option<u32>;
@@ -244,6 +272,12 @@ impl Timestamped for RecentTrack {
 impl Timestamped for LovedTrack {
     fn get_timestamp(&self) -> Option<u32> {
         Some(self.date.uts)
+    }
+}
+
+impl Timestamped for RecentTrackExtended {
+    fn get_timestamp(&self) -> Option<u32> {
+        self.date.as_ref().map(|d| d.uts)
     }
 }
 

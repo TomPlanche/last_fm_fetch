@@ -6,7 +6,9 @@ A trivial, small async Rust library for fetching and analyzing Last.fm user data
 
 ### Data Fetching
 - **Async API Integration**: Modern asynchronous Last.fm API communication
-- **Flexible Track Fetching**: Get recent tracks and loved tracks with configurable limits
+- **Flexible Track Fetching**: Get recent tracks, loved tracks, and top tracks with configurable limits
+- **Advanced Filtering**: Time-based filtering (`from`/`to` timestamps) and period-based filtering for top tracks
+- **Extended Data Support**: Fetch extended track information with additional artist details
 - **Efficient Pagination**: Smart handling of Last.fm's pagination system
 - **Rate Limit Aware**: Built-in handling of API rate limits
 
@@ -108,6 +110,91 @@ let filename = handler
 let stats = AnalysisHandler::analyze_file::<RecentTrack>(Path::new(&filename), 10)?;
 AnalysisHandler::print_analysis(&stats);
 ```
+
+### Advanced Fetching with Options
+
+The library provides comprehensive `*_with_options` methods that expose all available Last.fm API parameters:
+
+#### Recent Tracks with Options
+
+```rust
+use async_lastfm::{LastFMHandler, TrackLimit};
+
+let handler = LastFMHandler::new("username").unwrap();
+
+// Get last 50 tracks (basic usage)
+let tracks = handler
+    .get_user_recent_tracks_with_options(Some(50), None, None, false)
+    .await?;
+
+// Get tracks from the last week
+let one_week_ago = (Utc::now() - Duration::days(7)).timestamp();
+let tracks = handler
+    .get_user_recent_tracks_with_options(None, Some(one_week_ago), None, false)
+    .await?;
+
+// Get tracks between two dates with extended info
+let tracks = handler
+    .get_user_recent_tracks_with_options(None, Some(start), Some(end), true)
+    .await?;
+
+// Get extended track information (alternative method)
+let extended_tracks = handler
+    .get_user_recent_tracks_extended(Some(100), None, None)
+    .await?;
+```
+
+#### Top Tracks with Options
+
+```rust
+use async_lastfm::{LastFMHandler, Period, TrackLimit};
+
+let handler = LastFMHandler::new("username").unwrap();
+
+// Get all-time top 50 tracks
+let tracks = handler
+    .get_user_top_tracks_with_options(Some(50), None)
+    .await?;
+
+// Get top tracks from the last week
+let tracks = handler
+    .get_user_top_tracks_with_options(None, Some(Period::Week))
+    .await?;
+
+// Get top 100 tracks from the last 3 months
+let tracks = handler
+    .get_user_top_tracks_with_options(Some(100), Some(Period::ThreeMonth))
+    .await?;
+```
+
+#### Loved Tracks with Options
+
+```rust
+use async_lastfm::{LastFMHandler, TrackLimit};
+
+let handler = LastFMHandler::new("username").unwrap();
+
+// Get all loved tracks
+let tracks = handler
+    .get_user_loved_tracks_with_options(None)
+    .await?;
+
+// Get first 100 loved tracks
+let tracks = handler
+    .get_user_loved_tracks_with_options(Some(100))
+    .await?;
+```
+
+### Available Period Options
+
+When using `get_user_top_tracks_with_options`, you can filter by these time periods:
+
+- `Period::Overall` - All time (default if None)
+- `Period::Week` - Last 7 days
+- `Period::Month` - Last month
+- `Period::ThreeMonth` - Last 3 months
+- `Period::SixMonth` - Last 6 months
+- `Period::TwelveMonth` - Last 12 months
 
 ## 🧪 Testing
 
