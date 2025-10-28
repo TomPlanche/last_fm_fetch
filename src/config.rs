@@ -169,12 +169,17 @@ impl ConfigBuilder {
     /// Build the configuration
     ///
     /// # Errors
-    /// Returns an error if the API key is not set
+    /// Returns an error if the API key is not set and cannot be loaded from environment
     pub fn build(self) -> Result<Config> {
+        // Try to get API key from builder, then from environment
+        let api_key = self.api_key.or_else(|| {
+            env::var("LAST_FM_API_KEY").ok()
+        }).ok_or_else(|| LastFmError::Config(
+            "API key is required. Set it via .api_key() or LAST_FM_API_KEY environment variable".to_string()
+        ))?;
+
         Ok(Config {
-            api_key: self
-                .api_key
-                .ok_or_else(|| LastFmError::Config("API key is required".to_string()))?,
+            api_key,
             user_agent: self.user_agent.unwrap_or_else(|| {
                 format!("async_lastfm/{}", env!("CARGO_PKG_VERSION"))
             }),
@@ -183,6 +188,17 @@ impl ConfigBuilder {
             retry_attempts: self.retry_attempts.unwrap_or(3),
             rate_limit: self.rate_limit,
         })
+    }
+
+    /// Build the configuration with defaults, trying to load API key from environment
+    ///
+    /// This is equivalent to `ConfigBuilder::new().build()` but more explicit about
+    /// the default behavior.
+    ///
+    /// # Errors
+    /// Returns an error if the API key is not set and cannot be loaded from environment
+    pub fn build_with_defaults() -> Result<Config> {
+        Self::new().build()
     }
 }
 

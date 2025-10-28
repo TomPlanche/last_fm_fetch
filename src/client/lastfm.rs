@@ -1,4 +1,4 @@
-use crate::api::RecentTracksClient;
+use crate::api::{RecentTracksClient, LovedTracksClient, TopTracksClient};
 use crate::client::{HttpClient, RateLimitedClient, RateLimiter, ReqwestClient, RetryClient, RetryPolicy};
 use crate::config::{Config, ConfigBuilder};
 use crate::error::Result;
@@ -26,6 +26,8 @@ use std::sync::Arc;
 pub struct LastFmClient {
     config: Arc<Config>,
     recent_tracks_client: RecentTracksClient,
+    loved_tracks_client: LovedTracksClient,
+    top_tracks_client: TopTracksClient,
 }
 
 impl LastFmClient {
@@ -47,6 +49,28 @@ impl LastFmClient {
     #[must_use]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::new()
+    }
+
+    /// Create a new `LastFmClient` with default configuration
+    ///
+    /// This will automatically try to load the API key from the `LAST_FM_API_KEY`
+    /// environment variable. All other settings use sensible defaults.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use lastfm_client::LastFmClient;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LastFmClient::new()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if the API key is not set and cannot be loaded from environment
+    pub fn new() -> Result<Self> {
+        let config = ConfigBuilder::build_with_defaults()?;
+        Ok(Self::from_config(config))
     }
 
     /// Create a new `LastFmClient` from a configuration
@@ -76,11 +100,15 @@ impl LastFmClient {
         };
 
         let config = Arc::new(config);
-        let recent_tracks_client = RecentTracksClient::new(http, config.clone());
+        let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
+        let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
+        let top_tracks_client = TopTracksClient::new(http, config.clone());
 
         Self {
             config,
             recent_tracks_client,
+            loved_tracks_client,
+            top_tracks_client,
         }
     }
 
@@ -106,11 +134,15 @@ impl LastFmClient {
     /// ```
     pub fn with_http(config: Config, http: Arc<dyn HttpClient>) -> Self {
         let config = Arc::new(config);
-        let recent_tracks_client = RecentTracksClient::new(http, config.clone());
+        let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
+        let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
+        let top_tracks_client = TopTracksClient::new(http, config.clone());
 
         Self {
             config,
             recent_tracks_client,
+            loved_tracks_client,
+            top_tracks_client,
         }
     }
 
@@ -130,6 +162,42 @@ impl LastFmClient {
     /// ```
     pub fn recent_tracks(&self, username: impl Into<String>) -> crate::api::RecentTracksRequestBuilder {
         self.recent_tracks_client.builder(username)
+    }
+
+    /// Get a builder for loved tracks requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracks = client
+    ///     .loved_tracks("username")
+    ///     .limit(100)
+    ///     .fetch()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn loved_tracks(&self, username: impl Into<String>) -> crate::api::LovedTracksRequestBuilder {
+        self.loved_tracks_client.builder(username)
+    }
+
+    /// Get a builder for top tracks requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracks = client
+    ///     .top_tracks("username")
+    ///     .limit(100)
+    ///     .fetch()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn top_tracks(&self, username: impl Into<String>) -> crate::api::TopTracksRequestBuilder {
+        self.top_tracks_client.builder(username)
     }
 
     /// Get a reference to the configuration

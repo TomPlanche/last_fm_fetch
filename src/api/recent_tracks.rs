@@ -1,6 +1,8 @@
+use crate::analytics::AnalysisHandler;
 use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
+use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{RecentTrack, RecentTrackExtended, TrackLimit, UserRecentTracks, UserRecentTracksExtended};
 use crate::url_builder::QueryParams;
 
@@ -121,6 +123,94 @@ impl RecentTracksRequestBuilder {
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
         self.fetch_tracks_extended::<UserRecentTracksExtended>(limit, params).await
+    }
+
+    /// Fetch tracks and save them to a file
+    ///
+    /// # Arguments
+    /// * `format` - The file format to save the tracks in
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, response cannot be parsed, or file cannot be saved.
+    ///
+    /// # Returns
+    /// * `Result<String>` - The filename of the saved file
+    pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
+        let tracks = self.fetch().await?;
+        tracing::info!("Saving {} recent tracks to file", tracks.len());
+        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        Ok(filename)
+    }
+
+    /// Fetch tracks with extended information and save them to a file
+    ///
+    /// # Arguments
+    /// * `format` - The file format to save the tracks in
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, response cannot be parsed, or file cannot be saved.
+    ///
+    /// # Returns
+    /// * `Result<String>` - The filename of the saved file
+    pub async fn fetch_extended_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
+        let tracks = self.fetch_extended().await?;
+        tracing::info!("Saving {} recent tracks (extended) to file", tracks.len());
+        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        Ok(filename)
+    }
+
+    /// Analyze tracks and return statistics
+    ///
+    /// # Arguments
+    /// * `threshold` - Threshold for counting tracks with plays below this number
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    ///
+    /// # Returns
+    /// * `Result<crate::analytics::TrackStats>` - Analysis results
+    pub async fn analyze(self, threshold: usize) -> Result<crate::analytics::TrackStats> {
+        let tracks = self.fetch().await?;
+        Ok(AnalysisHandler::analyze_tracks(&tracks, threshold))
+    }
+
+    /// Analyze tracks and print statistics
+    ///
+    /// # Arguments
+    /// * `threshold` - Threshold for counting tracks with plays below this number
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    pub async fn analyze_and_print(self, threshold: usize) -> Result<()> {
+        let stats = self.analyze(threshold).await?;
+        AnalysisHandler::print_analysis(&stats);
+        Ok(())
+    }
+
+    /// Check if the user is currently playing a track
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    ///
+    /// # Returns
+    /// * `Result<Option<RecentTrack>>` - The currently playing track if any
+    pub async fn check_currently_playing(self) -> Result<Option<RecentTrack>> {
+        let tracks = self.limit(1).fetch().await?;
+        
+        // Check if the first track has the "now playing" attribute
+        Ok(tracks.first().and_then(|track| {
+            if track
+                .attr
+                .as_ref()
+                .is_some_and(|val| val.nowplaying == "true")
+            {
+                Some(track.clone())
+            } else {
+                None
+            }
+        }))
     }
 
     fn build_params(&self) -> QueryParams {

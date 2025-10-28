@@ -10,8 +10,6 @@ pub enum Period {
 }
 
 impl Period {
-    // Removed as_api_str - not currently used by v2.0 API
-    // Will be added back when implementing top tracks endpoint
 }
 
 /// Track limit options

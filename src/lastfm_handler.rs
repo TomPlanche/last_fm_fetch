@@ -1,4 +1,6 @@
 use crate::analytics::AnalysisHandler;
+use crate::api::constants::{BASE_URL, API_MAX_LIMIT, CHUNK_SIZE};
+use crate::api::Period;
 use crate::config;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
@@ -15,36 +17,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
-const BASE_URL: &str = "https://ws.audioscrobbler.com/2.0/";
-
-const API_MAX_LIMIT: u32 = 1000;
-
-const CHUNK_MULTIPLIER: u32 = 5;
-const CHUNK_SIZE: u32 = API_MAX_LIMIT * CHUNK_MULTIPLIER;
-
-/// Period options for Last.fm time range filters
-#[derive(Debug, Clone, Copy)]
-pub enum Period {
-    Overall,
-    Week,
-    Month,
-    ThreeMonth,
-    SixMonth,
-    TwelveMonth,
-}
-
-impl Period {
-    fn as_api_str(self) -> &'static str {
-        match self {
-            Period::Overall => "overall",
-            Period::Week => "7day",
-            Period::Month => "1month",
-            Period::ThreeMonth => "3month",
-            Period::SixMonth => "6month",
-            Period::TwelveMonth => "12month",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TrackLimit {
@@ -178,6 +150,7 @@ impl LastFMHandler {
     /// // Get first 100 loved tracks
     /// let tracks = handler.get_user_loved_tracks_with_options(Some(100)).await?;
     /// ```
+    #[deprecated(since = "2.0.0", note = "Use `LovedTracksClient` from the `api` module instead")]
     pub async fn get_user_loved_tracks_with_options(
         &self,
         limit: impl Into<TrackLimit>,
@@ -196,10 +169,12 @@ impl LastFMHandler {
     ///
     /// # Returns
     /// * `Result<Vec<LovedTrack>, Error>` - The fetched tracks.
+    #[deprecated(since = "2.0.0", note = "Use `LovedTracksClient` from the `api` module instead")]
     pub async fn get_user_loved_tracks(
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<LovedTrack>> {
+        #[allow(deprecated)]
         self.get_user_loved_tracks_with_options(limit).await
     }
 
@@ -213,10 +188,12 @@ impl LastFMHandler {
     ///
     /// # Returns
     /// * `Result<Vec<RecentTrack>, Error>` - The fetched tracks.
+    #[deprecated(since = "2.0.0", note = "Use `RecentTracksClient` from the `api` module instead")]
     pub async fn get_user_recent_tracks(
         &self,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>> {
+        #[allow(deprecated)]
         self.get_user_recent_tracks_with_options(limit, None, None, false)
             .await
     }
@@ -253,6 +230,7 @@ impl LastFMHandler {
     /// // Get top 100 tracks from the last 3 months
     /// let tracks = handler.get_user_top_tracks_with_options(Some(100), Some(Period::ThreeMonth)).await?;
     /// ```
+    #[deprecated(since = "2.0.0", note = "Use `TopTracksClient` from the `api` module instead")]
     pub async fn get_user_top_tracks_with_options(
         &self,
         limit: impl Into<TrackLimit>,
@@ -280,11 +258,13 @@ impl LastFMHandler {
     ///
     /// # Returns
     /// * `Result<Vec<TopTrack>>` - The fetched tracks.
+    #[deprecated(since = "2.0.0", note = "Use `TopTracksClient` from the `api` module instead")]
     pub async fn get_user_top_tracks(
         &self,
         limit: impl Into<TrackLimit>,
         period: Option<Period>,
     ) -> Result<Vec<TopTrack>> {
+        #[allow(deprecated)]
         self.get_user_top_tracks_with_options(limit, period).await
     }
 
@@ -444,6 +424,7 @@ impl LastFMHandler {
         format: FileFormat,
         filename_prefix: &str,
     ) -> Result<String> {
+        #[allow(deprecated)]
         let tracks = self.get_user_recent_tracks(limit).await?;
         tracing::info!("Saving {} tracks to file", tracks.len());
         let filename =
@@ -468,6 +449,7 @@ impl LastFMHandler {
         limit: impl Into<TrackLimit>,
         format: FileFormat,
     ) -> Result<String> {
+        #[allow(deprecated)]
         let tracks = self.get_user_loved_tracks(limit).await?;
         let filename =
             FileHandler::save(&tracks, &format, "loved_tracks").map_err(LastFmError::Io)?;
@@ -494,6 +476,7 @@ impl LastFMHandler {
         to: Option<i64>,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<RecentTrack>> {
+        #[allow(deprecated)]
         self.get_user_recent_tracks_with_options(limit, Some(from), to, false)
             .await
     }
@@ -528,6 +511,7 @@ impl LastFMHandler {
     /// // Get tracks between two dates with extended info
     /// let tracks = handler.get_user_recent_tracks_with_options(None, Some(start), Some(end), true).await?;
     /// ```
+    #[deprecated(since = "2.0.0", note = "Use `RecentTracksClient` from the `api` module instead")]
     pub async fn get_user_recent_tracks_with_options(
         &self,
         limit: impl Into<TrackLimit>,
@@ -568,6 +552,7 @@ impl LastFMHandler {
     ///
     /// # Returns
     /// * `Result<Vec<RecentTrackExtended>>` - The fetched tracks with extended information.
+    #[deprecated(since = "2.0.0", note = "Use `RecentTracksClient` from the `api` module instead")]
     pub async fn get_user_recent_tracks_extended(
         &self,
         limit: impl Into<TrackLimit>,
@@ -618,12 +603,14 @@ impl LastFMHandler {
     /// let now = Utc::now().timestamp();
     /// let tracks = handler.get_user_recent_tracks_between(one_week_ago, now, true).await?;
     /// ```
+    #[deprecated(since = "2.0.0", note = "Use `RecentTracksClient` from the `api` module instead")]
     pub async fn get_user_recent_tracks_between(
         &self,
         from: i64,
         to: i64,
         extended: bool,
     ) -> Result<Vec<RecentTrack>> {
+        #[allow(deprecated)]
         self.get_user_recent_tracks_with_options(TrackLimit::Unlimited, Some(from), Some(to), extended)
             .await
     }
@@ -650,11 +637,13 @@ impl LastFMHandler {
     /// let end = Utc.ymd(2024, 2, 1).and_hms(0, 0, 0).timestamp();
     /// let tracks = handler.get_user_recent_tracks_between_extended(start, end).await?;
     /// ```
+    #[deprecated(since = "2.0.0", note = "Use `RecentTracksClient` from the `api` module instead")]
     pub async fn get_user_recent_tracks_between_extended(
         &self,
         from: i64,
         to: i64,
     ) -> Result<Vec<RecentTrackExtended>> {
+        #[allow(deprecated)]
         self.get_user_recent_tracks_extended(TrackLimit::Unlimited, Some(from), Some(to))
             .await
     }
@@ -677,6 +666,7 @@ impl LastFMHandler {
         timestamp: u32,
         limit: impl Into<TrackLimit>,
     ) -> Result<Vec<LovedTrack>> {
+        #[allow(deprecated)]
         let tracks = self.get_user_loved_tracks(limit).await?;
 
         Ok(tracks
@@ -736,6 +726,7 @@ impl LastFMHandler {
     /// * `Result<String>` - Path to the saved JSON file containing play counts
     pub async fn export_recent_play_counts(&self, limit: impl Into<TrackLimit>) -> Result<String> {
         // Get recent tracks
+        #[allow(deprecated)]
         let tracks = self.get_user_recent_tracks(limit.into()).await?;
 
         // Count plays and collect track info
@@ -791,6 +782,7 @@ impl LastFMHandler {
         file_path: &str,
     ) -> Result<String> {
         // Get recent tracks
+        #[allow(deprecated)]
         let tracks = self.get_user_recent_tracks(limit.into()).await?;
 
         // Count plays and collect track info

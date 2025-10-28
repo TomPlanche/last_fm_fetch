@@ -1,29 +1,54 @@
-use crate::analytics::AnalysisHandler;
 use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{LovedTrack, TrackLimit, UserLovedTracks};
+use crate::types::{TopTrack, TrackLimit, UserTopTracks};
+use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
 use super::fetch_utils::{fetch_tracks, TrackContainer};
 
-/// Client for fetching loved tracks
-pub struct LovedTracksClient {
+/// Period options for Last.fm time range filters
+#[derive(Debug, Clone, Copy)]
+pub enum Period {
+    Overall,
+    Week,
+    Month,
+    ThreeMonth,
+    SixMonth,
+    TwelveMonth,
+}
+
+impl Period {
+    #[must_use]
+    pub fn as_api_str(self) -> &'static str {
+        match self {
+            Period::Overall => "overall",
+            Period::Week => "7day",
+            Period::Month => "1month",
+            Period::ThreeMonth => "3month",
+            Period::SixMonth => "6month",
+            Period::TwelveMonth => "12month",
+        }
+    }
+}
+
+/// Client for fetching top tracks
+pub struct TopTracksClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
 }
 
-impl LovedTracksClient {
+impl TopTracksClient {
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }
 
-    /// Create a builder for loved tracks requests
-    pub fn builder(&self, username: impl Into<String>) -> LovedTracksRequestBuilder {
-        LovedTracksRequestBuilder::new(
+    /// Create a builder for top tracks requests
+    pub fn builder(&self, username: impl Into<String>) -> TopTracksRequestBuilder {
+        TopTracksRequestBuilder::new(
             self.http.clone(),
             self.config.clone(),
             username.into(),
@@ -31,21 +56,23 @@ impl LovedTracksClient {
     }
 }
 
-/// Builder for loved tracks requests
-pub struct LovedTracksRequestBuilder {
+/// Builder for top tracks requests
+pub struct TopTracksRequestBuilder {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,
     limit: Option<u32>,
+    period: Option<Period>,
 }
 
-impl LovedTracksRequestBuilder {
+impl TopTracksRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
             config,
             username,
             limit: None,
+            period: None,
         }
     }
 
@@ -63,16 +90,29 @@ impl LovedTracksRequestBuilder {
         self
     }
 
+    /// Set the time period for top tracks
+    #[must_use]
+    pub fn period(mut self, period: Period) -> Self {
+        self.period = Some(period);
+        self
+    }
+
     /// Fetch the tracks
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn fetch(self) -> Result<Vec<LovedTrack>> {
+    pub async fn fetch(self) -> Result<Vec<TopTrack>> {
+        let mut params = QueryParams::new();
+
+        if let Some(period) = self.period {
+            params.insert("period".to_string(), period.as_api_str().to_string());
+        }
+
         let limit = self
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_tracks::<UserLovedTracks>(limit).await
+        self.fetch_tracks::<UserTopTracks>(limit, params).await
     }
 
     /// Fetch tracks and save them to a file
@@ -88,69 +128,39 @@ impl LovedTracksRequestBuilder {
     /// * `Result<String>` - The filename of the saved file
     pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
         let tracks = self.fetch().await?;
-        tracing::info!("Saving {} loved tracks to file", tracks.len());
+        tracing::info!("Saving {} top tracks to file", tracks.len());
         let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
-    }
-
-    /// Analyze tracks and return statistics
-    ///
-    /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
-    ///
-    /// # Errors
-    /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    ///
-    /// # Returns
-    /// * `Result<crate::analytics::TrackStats>` - Analysis results
-    pub async fn analyze(self, threshold: usize) -> Result<crate::analytics::TrackStats> {
-        let tracks = self.fetch().await?;
-        Ok(AnalysisHandler::analyze_tracks(&tracks, threshold))
-    }
-
-    /// Analyze tracks and print statistics
-    ///
-    /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
-    ///
-    /// # Errors
-    /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn analyze_and_print(self, threshold: usize) -> Result<()> {
-        let stats = self.analyze(threshold).await?;
-        AnalysisHandler::print_analysis(&stats);
-        Ok(())
     }
 
     async fn fetch_tracks<T>(
         &self,
         limit: TrackLimit,
-    ) -> Result<Vec<LovedTrack>>
+        additional_params: QueryParams,
+    ) -> Result<Vec<TopTrack>>
     where
-        T: DeserializeOwned + TrackContainer<TrackType = LovedTrack>,
+        T: DeserializeOwned + TrackContainer<TrackType = TopTrack>,
     {
-        use crate::url_builder::QueryParams;
-        
-        fetch_tracks::<LovedTrack, T>(
+        fetch_tracks::<TopTrack, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
-            "user.getlovedtracks",
+            "user.gettoptracks",
             limit,
-            QueryParams::new(),
+            additional_params,
         )
         .await
     }
-
 }
 
-impl TrackContainer for UserLovedTracks {
-    type TrackType = LovedTrack;
+impl TrackContainer for UserTopTracks {
+    type TrackType = TopTrack;
 
     fn total_tracks(&self) -> u32 {
-        self.lovedtracks.attr.total
+        self.toptracks.attr.total
     }
 
     fn tracks(self) -> Vec<Self::TrackType> {
-        self.lovedtracks.track
+        self.toptracks.track
     }
 }

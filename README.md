@@ -4,6 +4,16 @@ A modern, async Rust library for fetching and analyzing Last.fm user data with e
 
 **Version 2.0** introduces a brand new builder-pattern API with retry logic, rate limiting, and improved ergonomics, while maintaining 100% backward compatibility with the 1.x API.
 
+## 🚀 New in v2.0
+
+- **🎯 Specialized API Clients**: `RecentTracksClient`, `LovedTracksClient`, `TopTracksClient`
+- **🔧 Builder Pattern**: Fluent, discoverable API design
+- **📊 Built-in Analytics**: Track analysis and statistics methods
+- **💾 File Operations**: Built-in save and export functionality
+- **🎵 Currently Playing**: Real-time track detection
+- **⚡ Performance**: Optimized HTTP client with retry logic
+- **🔄 Backward Compatible**: V1.x API still works (with deprecation warnings)
+
 ## Installation
 
 Add this to your `Cargo.toml`:
@@ -71,10 +81,8 @@ use lastfm_client::LastFmClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create client from environment variables
-    let client = LastFmClient::builder()
-        .from_env()?
-        .build_client()?;
+    // Create client with defaults (loads API key from LAST_FM_API_KEY env var)
+    let client = LastFmClient::new()?;
 
     // Fetch recent tracks with builder pattern
     let tracks = client
@@ -84,6 +92,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("Fetched {} tracks", tracks.len());
+    Ok(())
+}
+```
+
+### Alternative: Using Builder Pattern
+
+```rust
+use lastfm_client::LastFmClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create client with custom configuration
+    let client = LastFmClient::builder()
+        .api_key("your_api_key")  // Optional: defaults to LAST_FM_API_KEY env var
+        .timeout(Duration::from_secs(60))
+        .retry_attempts(5)
+        .build_client()?;
+
+    // Use the client...
     Ok(())
 }
 ```
@@ -142,8 +169,88 @@ let tracks = client
 let extended_tracks = client
     .recent_tracks("username")
     .limit(50)
-    .extended(true)
+    .extended()
     .fetch_extended()
+    .await?;
+
+// Check if user is currently playing
+let currently_playing = client
+    .recent_tracks("username")
+    .check_currently_playing()
+    .await?;
+
+// Analyze tracks and get statistics
+let stats = client
+    .recent_tracks("username")
+    .limit(100)
+    .analyze(5)
+    .await?;
+
+// Fetch and save to file
+let filename = client
+    .recent_tracks("username")
+    .limit(50)
+    .fetch_and_save(FileFormat::Json, "my_tracks")
+    .await?;
+```
+
+### Fetching Loved Tracks
+
+```rust
+// Limited loved tracks
+let loved_tracks = client
+    .loved_tracks("username")
+    .limit(50)
+    .fetch()
+    .await?;
+
+// All loved tracks
+let all_loved = client
+    .loved_tracks("username")
+    .unlimited()
+    .fetch()
+    .await?;
+
+// Analyze loved tracks
+let stats = client
+    .loved_tracks("username")
+    .analyze(1)
+    .await?;
+
+// Fetch and save loved tracks
+let filename = client
+    .loved_tracks("username")
+    .fetch_and_save(FileFormat::Json, "loved_tracks")
+    .await?;
+```
+
+### Fetching Top Tracks
+
+```rust
+use lastfm_client::api::Period;
+
+// Top tracks with period filter
+let top_tracks = client
+    .top_tracks("username")
+    .limit(50)
+    .period(Period::ThreeMonth)
+    .fetch()
+    .await?;
+
+// All-time top tracks
+let all_time_top = client
+    .top_tracks("username")
+    .unlimited()
+    .period(Period::Overall)
+    .fetch()
+    .await?;
+
+// Fetch and save top tracks
+let filename = client
+    .top_tracks("username")
+    .limit(100)
+    .period(Period::Month)
+    .fetch_and_save(FileFormat::Json, "monthly_top")
     .await?;
 ```
 
@@ -208,7 +315,9 @@ Tips:
 
 ---
 
-## V1.x API (Legacy, Fully Supported)
+## V1.x API (Legacy, Deprecated but Fully Supported)
+
+> **⚠️ Deprecation Notice**: The V1.x API methods are now deprecated and will show deprecation warnings when used. We recommend migrating to the new V2.0 API clients for better performance, features, and maintainability. The V1.x API will continue to work indefinitely for backward compatibility.
 
 ### Basic Example
 
@@ -398,7 +507,7 @@ When using `get_user_top_tracks_with_options`, you can filter by these time peri
 
 ## Migration Guide (v1.x → v2.0)
 
-The v2.0 API is **completely optional** and backward compatible. You can migrate gradually or continue using the v1.x API indefinitely.
+The v2.0 API is **completely optional** and backward compatible. You can migrate gradually or continue using the v1.x API indefinitely (though it will show deprecation warnings).
 
 ### Before (v1.x)
 ```rust
@@ -416,12 +525,20 @@ handler.get_user_recent_tracks_extended(Some(100), None, None)?;
 
 // Between dates
 handler.get_user_recent_tracks_between(from, to, false)?;
+
+// Top tracks
+handler.get_user_top_tracks(Some(50), Some(Period::ThreeMonth))?;
+
+// Loved tracks
+handler.get_user_loved_tracks(Some(100))?;
 ```
 
 ### After (v2.0)
 ```rust
-// One method with builder pattern
-let client = LastFmClient::builder().from_env()?.build_client()?;
+use lastfm_client::LastFmClient;
+
+// Create client with defaults (loads API key from environment)
+let client = LastFmClient::new()?;
 
 // Limited tracks
 client.recent_tracks("username").limit(100).fetch().await?;
@@ -434,6 +551,12 @@ client.recent_tracks("username").limit(100).fetch_extended().await?;
 
 // Between dates
 client.recent_tracks("username").between(from, to).fetch().await?;
+
+// Top tracks
+client.top_tracks("username").limit(50).period(Period::ThreeMonth).fetch().await?;
+
+// Loved tracks
+client.loved_tracks("username").limit(100).fetch().await?;
 ```
 
 ### Key Benefits of v2.0
@@ -454,8 +577,10 @@ client.recent_tracks("username").between(from, to).fetch().await?;
 #### Client Creation
 
 ```rust
-// From environment variables (.env file)
-let client = LastFmClient::builder().from_env()?.build()?;
+use lastfm_client::LastFmClient;
+
+// Simple: with defaults (loads API key from LAST_FM_API_KEY env var)
+let client = LastFmClient::new()?;
 
 // With custom configuration
 let client = LastFmClient::builder()
@@ -465,7 +590,7 @@ let client = LastFmClient::builder()
     .build_client()?;
 ```
 
-#### Recent Tracks Builder
+#### Recent Tracks
 
 ```rust
 client.recent_tracks("username")
@@ -473,38 +598,68 @@ client.recent_tracks("username")
     .unlimited()             // Fetch all available tracks
     .since(i64)              // Tracks since timestamp
     .between(i64, i64)       // Tracks between two timestamps
-    .extended(bool)          // Include extended info
+    .extended()              // Include extended info
     .fetch()                 // Execute and get Vec<RecentTrack>
     .fetch_extended()        // Execute and get Vec<RecentTrackExtended>
+    .check_currently_playing() // Check if currently playing
+    .analyze(usize)          // Analyze tracks and get statistics
+    .analyze_and_print(usize) // Analyze and print statistics
+    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_extended_and_save(format, prefix) // Fetch extended and save
 ```
 
-### V1.x API
+#### Loved Tracks
+
+```rust
+client.loved_tracks("username")
+    .limit(u32)              // Limit number of tracks
+    .unlimited()             // Fetch all available tracks
+    .fetch()                 // Execute and get Vec<LovedTrack>
+    .analyze(usize)          // Analyze tracks and get statistics
+    .analyze_and_print(usize) // Analyze and print statistics
+    .fetch_and_save(format, prefix) // Fetch and save to file
+```
+
+#### Top Tracks
+
+```rust
+client.top_tracks("username")
+    .limit(u32)              // Limit number of tracks
+    .unlimited()             // Fetch all available tracks
+    .period(Period)          // Time period filter
+    .fetch()                 // Execute and get Vec<TopTrack>
+    .fetch_and_save(format, prefix) // Fetch and save to file
+```
+
+### V1.x API (Deprecated)
+
+> **⚠️ All V1.x methods are deprecated and will show deprecation warnings. Use the V2.0 API clients instead.**
 
 #### Recent Tracks Methods
 
-| Method | Parameters | Returns | Description |
-|--------|------------|---------|-------------|
-| `get_user_recent_tracks` | `limit` | `Vec<RecentTrack>` | Simple method to fetch recent tracks |
-| `get_user_recent_tracks_with_options` | `limit`, `from`, `to`, `extended` | `Vec<RecentTrack>` | Full control over all API parameters |
-| `get_user_recent_tracks_extended` | `limit`, `from`, `to` | `Vec<RecentTrackExtended>` | Fetch recent tracks with extended info |
-| `get_user_recent_tracks_since` | `from`, `to`, `limit` | `Vec<RecentTrack>` | Fetch tracks since a timestamp |
-| `get_user_recent_tracks_between` | `from`, `to`, `extended` | `Vec<RecentTrack>` | Fetch all tracks between two dates |
-| `get_user_recent_tracks_between_extended` | `from`, `to` | `Vec<RecentTrackExtended>` | Fetch all tracks between dates with extended info |
+| Method | Parameters | Returns | Description | Status |
+|--------|------------|---------|-------------|--------|
+| `get_user_recent_tracks` | `limit` | `Vec<RecentTrack>` | Simple method to fetch recent tracks | ⚠️ Deprecated |
+| `get_user_recent_tracks_with_options` | `limit`, `from`, `to`, `extended` | `Vec<RecentTrack>` | Full control over all API parameters | ⚠️ Deprecated |
+| `get_user_recent_tracks_extended` | `limit`, `from`, `to` | `Vec<RecentTrackExtended>` | Fetch recent tracks with extended info | ⚠️ Deprecated |
+| `get_user_recent_tracks_since` | `from`, `to`, `limit` | `Vec<RecentTrack>` | Fetch tracks since a timestamp | ⚠️ Deprecated |
+| `get_user_recent_tracks_between` | `from`, `to`, `extended` | `Vec<RecentTrack>` | Fetch all tracks between two dates | ⚠️ Deprecated |
+| `get_user_recent_tracks_between_extended` | `from`, `to` | `Vec<RecentTrackExtended>` | Fetch all tracks between dates with extended info | ⚠️ Deprecated |
 
 ### Top Tracks Methods
 
-| Method | Parameters | Returns | Description |
-|--------|------------|---------|-------------|
-| `get_user_top_tracks` | `limit`, `period` | `Vec<TopTrack>` | Simple method to fetch top tracks |
-| `get_user_top_tracks_with_options` | `limit`, `period` | `Vec<TopTrack>` | Full control over all API parameters |
+| Method | Parameters | Returns | Description | Status |
+|--------|------------|---------|-------------|--------|
+| `get_user_top_tracks` | `limit`, `period` | `Vec<TopTrack>` | Simple method to fetch top tracks | ⚠️ Deprecated |
+| `get_user_top_tracks_with_options` | `limit`, `period` | `Vec<TopTrack>` | Full control over all API parameters | ⚠️ Deprecated |
 
 ### Loved Tracks Methods
 
-| Method | Parameters | Returns | Description |
-|--------|------------|---------|-------------|
-| `get_user_loved_tracks` | `limit` | `Vec<LovedTrack>` | Simple method to fetch loved tracks |
-| `get_user_loved_tracks_with_options` | `limit` | `Vec<LovedTrack>` | Full control over all API parameters |
-| `get_user_loved_tracks_since` | `timestamp`, `limit` | `Vec<LovedTrack>` | Fetch loved tracks since a timestamp |
+| Method | Parameters | Returns | Description | Status |
+|--------|------------|---------|-------------|--------|
+| `get_user_loved_tracks` | `limit` | `Vec<LovedTrack>` | Simple method to fetch loved tracks | ⚠️ Deprecated |
+| `get_user_loved_tracks_with_options` | `limit` | `Vec<LovedTrack>` | Full control over all API parameters | ⚠️ Deprecated |
+| `get_user_loved_tracks_since` | `timestamp`, `limit` | `Vec<LovedTrack>` | Fetch loved tracks since a timestamp | ⚠️ Deprecated |
 
 ### Helper Methods
 
