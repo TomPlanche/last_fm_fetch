@@ -1,5 +1,5 @@
-use async_lastfm::config;
-use async_lastfm::lastfm_handler::LastFMHandler;
+use lastfm_client::config;
+use lastfm_client::lastfm_handler::LastFMHandler;
 
 /// Example demonstrating environment variable validation
 ///
@@ -22,7 +22,7 @@ async fn main() {
 
     // Now we can safely create the handler
     // If the API key is missing, we'll get a clear error message
-    let username = "example_user";
+    let username = "tom_planche";
     match LastFMHandler::new(username) {
         Ok(handler) => {
             println!("✓ LastFMHandler created successfully for user: {username}");

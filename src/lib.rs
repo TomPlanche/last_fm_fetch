@@ -1,8 +1,13 @@
+// Modular structure
+pub mod api;
+pub mod client;
+pub mod config;
+pub mod error;
+pub mod types;
+
+// Utility modules
 #[path = "analytics.rs"]
 pub mod analytics;
-
-#[path = "config.rs"]
-pub mod config;
 
 #[path = "file_handler.rs"]
 pub mod file_handler;
@@ -10,11 +15,17 @@ pub mod file_handler;
 #[path = "lastfm_handler.rs"]
 pub mod lastfm_handler;
 
-#[path = "types.rs"]
-pub mod types;
-
 #[path = "url_builder.rs"]
 pub mod url_builder;
 
-#[path = "error.rs"]
-pub mod error;
+// Public API re-exports
+pub use client::LastFmClient;
+pub use config::{Config, ConfigBuilder, RateLimit};
+pub use error::{LastFmError, Result};
+pub use types::{Period, TrackLimit};
+
+// Re-export commonly used types
+pub use types::{
+    LovedTrack, RecentTrack, RecentTrackExtended, TopTrack, UserLovedTracks, UserRecentTracks,
+    UserRecentTracksExtended, UserTopTracks,
+};

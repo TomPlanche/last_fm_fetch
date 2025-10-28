@@ -1,19 +1,26 @@
 [package]
-name = "async_lastfm"
-version = "1.1.0"
-edition = "2021"
+name = "lastfm-client"
+version = "2.0.0"
+edition = "2024"
+description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
+license = "MIT"
+repository = "https://github.com/tom_planche/lastfm-client"
+keywords = ["lastfm", "api", "async", "music", "scrobble"]
+categories = ["api-bindings", "web-programming"]
 
 [dependencies]
+async-trait = "0.1"
 chrono = "0.4.42"
 csv = "1.4.0"
 dotenv = "0.15.0"
 futures = "0.3.31"
-mockito = "1.7.0"
+parking_lot = "0.12"
 reqwest = { version = "0.12.24", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-tabular = "0.2.0"
+thiserror = "1.0"
 tokio = { version = "1.48.0", features = ["full"] }
+tracing = "0.1"
 url = { version = "2.5.7", features = ["serde"] }
 
 [dev-dependencies]

@@ -3,9 +3,8 @@ use crate::config;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    ApiRecentTrack, ApiRecentTrackExtended, LovedTrack, RecentTrack, RecentTrackExtended,
-    Timestamped, TopTrack, UserLovedTracks, UserRecentTracks, UserRecentTracksExtended,
-    UserTopTracks,
+    LovedTrack, RecentTrack, RecentTrackExtended, Timestamped, TopTrack, UserLovedTracks,
+    UserRecentTracks, UserRecentTracksExtended, UserTopTracks,
 };
 use crate::url_builder::{QueryParams, Url};
 
@@ -63,57 +62,52 @@ impl From<Option<u32>> for TrackLimit {
 }
 
 trait TrackContainer {
-    type ApiTrackType;
-    type StorageTrackType: From<Self::ApiTrackType>;
+    type TrackType;
 
     fn total_tracks(&self) -> u32;
-    fn tracks(self) -> Vec<Self::ApiTrackType>;
+    fn tracks(self) -> Vec<Self::TrackType>;
 }
 
 impl TrackContainer for UserLovedTracks {
-    type ApiTrackType = LovedTrack; // No change needed for LovedTracks
-    type StorageTrackType = LovedTrack; // No change needed for LovedTracks
+    type TrackType = LovedTrack;
 
     fn total_tracks(&self) -> u32 {
         self.lovedtracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::ApiTrackType> {
+    fn tracks(self) -> Vec<Self::TrackType> {
         self.lovedtracks.track
     }
 }
 
 impl TrackContainer for UserRecentTracks {
-    type ApiTrackType = ApiRecentTrack;
-    type StorageTrackType = RecentTrack;
+    type TrackType = RecentTrack;
 
     fn total_tracks(&self) -> u32 {
         self.recenttracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::ApiTrackType> {
+    fn tracks(self) -> Vec<Self::TrackType> {
         self.recenttracks.track
     }
 }
 
 impl TrackContainer for UserRecentTracksExtended {
-    type ApiTrackType = ApiRecentTrackExtended;
-    type StorageTrackType = RecentTrackExtended;
+    type TrackType = RecentTrackExtended;
 
     fn total_tracks(&self) -> u32 {
         self.recenttracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::ApiTrackType> {
+    fn tracks(self) -> Vec<Self::TrackType> {
         self.recenttracks.track
     }
 }
 
 impl TrackContainer for UserTopTracks {
-    type ApiTrackType = TopTrack;
-    type StorageTrackType = TopTrack;
+    type TrackType = TopTrack;
 
     fn total_tracks(&self) -> u32 {
         self.toptracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::ApiTrackType> {
+    fn tracks(self) -> Vec<Self::TrackType> {
         self.toptracks.track
     }
 }
@@ -307,7 +301,7 @@ impl LastFMHandler {
         method: &str,
         limit: TrackLimit,
         additional_params: Option<QueryParams>,
-    ) -> Result<Vec<T::StorageTrackType>> {
+    ) -> Result<Vec<T::TrackType>> {
         let mut params = self.base_options.clone();
         if let Some(additional_params) = additional_params {
             params.extend(additional_params);
@@ -327,7 +321,7 @@ impl LastFMHandler {
             TrackLimit::Unlimited => total_tracks,
         };
 
-        println!("Need to fetch {final_limit} tracks");
+        tracing::debug!("Need to fetch {} tracks", final_limit);
 
         if final_limit <= API_MAX_LIMIT {
             // If we need less than the API limit, just make a single request
@@ -341,7 +335,6 @@ impl LastFMHandler {
                 .tracks()
                 .into_iter()
                 .take(final_limit as usize)
-                .map(T::StorageTrackType::from)
                 .collect());
         }
 
@@ -351,7 +344,7 @@ impl LastFMHandler {
 
         // Process chunks sequentially
         for chunk_index in 0..chunk_nb {
-            println!("Processing chunk {}/{}", chunk_index + 1, chunk_nb);
+            tracing::debug!("Processing chunk {}/{}", chunk_index + 1, chunk_nb);
             let chunk_params = params.clone();
 
             // Calculate how many API calls we need for this chunk
@@ -382,7 +375,6 @@ impl LastFMHandler {
                                 .tracks()
                                 .into_iter()
                                 .take(call_limit as usize)
-                                .map(T::StorageTrackType::from)
                                 .collect::<Vec<_>>(),
                         )
                     }
@@ -421,7 +413,12 @@ impl LastFMHandler {
         // Check if the response is an error
         if !response.status().is_success() {
             let error: LastFmErrorResponse = response.json().await?;
-            return Err(LastFmError::Api(error));
+            return Err(LastFmError::Api {
+                method: method.to_string(),
+                message: error.message,
+                error_code: error.error,
+                retryable: false,
+            });
         }
 
         // Try to parse the successful response
@@ -448,7 +445,7 @@ impl LastFMHandler {
         filename_prefix: &str,
     ) -> Result<String> {
         let tracks = self.get_user_recent_tracks(limit).await?;
-        println!("Saving {} tracks to file", tracks.len());
+        tracing::info!("Saving {} tracks to file", tracks.len());
         let filename =
             FileHandler::save(&tracks, &format, filename_prefix).map_err(LastFmError::Io)?;
         Ok(filename)
@@ -716,7 +713,9 @@ impl LastFMHandler {
             .get_user_recent_tracks_since(last_timestamp, None, None)
             .await?;
 
-        let file_path_str = file_path.to_str().unwrap();
+        let file_path_str = file_path
+            .to_str()
+            .ok_or_else(|| LastFmError::Other("Invalid file path (non-UTF8)".to_string()))?;
 
         // Append the new tracks to the file
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;

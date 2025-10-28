@@ -111,26 +111,26 @@ impl AnalysisHandler {
         // Find most played artist and track
         let most_played_artist = artist_play_counts
             .iter()
-            .max_by_key(|(_, &count)| count)
-            .map(|(name, &count)| (name.clone(), count));
+            .max_by_key(|(_, count)| *count)
+            .map(|(name, count)| (name.clone(), *count));
 
         let most_played_track = track_play_counts
             .iter()
-            .max_by_key(|(_, &count)| count)
-            .map(|(name, &count)| (name.clone(), count));
+            .max_by_key(|(_, count)| *count)
+            .map(|(name, count)| (name.clone(), *count));
 
         // Find tracks played less than threshold
         let tracks_below_threshold: HashMap<String, usize> = track_play_counts
             .iter()
-            .filter(|(_, &count)| count < threshold)
-            .map(|(name, &count)| (name.clone(), count))
+            .filter(|(_, count)| **count < threshold)
+            .map(|(name, count)| (name.clone(), *count))
             .collect();
 
         // Find tracks played more than threshold
         let tracks_above_threshold: HashMap<String, usize> = track_play_counts
             .iter()
-            .filter(|(_, &count)| count >= threshold)
-            .map(|(name, &count)| (name.clone(), count))
+            .filter(|(_, count)| **count >= threshold)
+            .map(|(name, count)| (name.clone(), *count))
             .collect();
 
         TrackStats {
@@ -206,7 +206,7 @@ impl AnalysisHandler {
 
         Ok(tracks
             .iter()
-            .filter_map(super::types::Timestamped::get_timestamp)
+            .filter_map(Timestamped::get_timestamp)
             .map(i64::from)
             .max())
     }
