@@ -1,5 +1,7 @@
-use crate::api::{RecentTracksClient, LovedTracksClient, TopTracksClient};
-use crate::client::{HttpClient, RateLimitedClient, RateLimiter, ReqwestClient, RetryClient, RetryPolicy};
+use crate::api::{LovedTracksClient, RecentTracksClient, TopTracksClient};
+use crate::client::{
+    HttpClient, RateLimitedClient, RateLimiter, ReqwestClient, RetryClient, RetryPolicy,
+};
 use crate::config::{Config, ConfigBuilder};
 use crate::error::Result;
 use std::sync::Arc;
@@ -160,7 +162,10 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn recent_tracks(&self, username: impl Into<String>) -> crate::api::RecentTracksRequestBuilder {
+    pub fn recent_tracks(
+        &self,
+        username: impl Into<String>,
+    ) -> crate::api::RecentTracksRequestBuilder {
         self.recent_tracks_client.builder(username)
     }
 
@@ -178,7 +183,10 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn loved_tracks(&self, username: impl Into<String>) -> crate::api::LovedTracksRequestBuilder {
+    pub fn loved_tracks(
+        &self,
+        username: impl Into<String>,
+    ) -> crate::api::LovedTracksRequestBuilder {
         self.loved_tracks_client.builder(username)
     }
 
@@ -227,10 +235,7 @@ mod tests {
 
     #[test]
     fn test_client_from_config() {
-        let config = ConfigBuilder::new()
-            .api_key("test_key")
-            .build()
-            .unwrap();
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
 
         let client = LastFmClient::from_config(config);
         assert_eq!(client.config().api_key(), "test_key");
@@ -238,10 +243,7 @@ mod tests {
 
     #[test]
     fn test_client_with_mock() {
-        let config = ConfigBuilder::new()
-            .api_key("test_key")
-            .build()
-            .unwrap();
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
 
         let mock = MockClient::new();
         let client = LastFmClient::with_http(config, Arc::new(mock));
@@ -259,5 +261,3 @@ mod tests {
         assert_eq!(client.config().api_key(), "test_key");
     }
 }
-
-

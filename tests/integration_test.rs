@@ -1,5 +1,5 @@
-use lastfm_client::{LastFmClient, ConfigBuilder};
 use lastfm_client::client::MockClient;
+use lastfm_client::{ConfigBuilder, LastFmClient};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -208,7 +208,7 @@ async fn test_recent_tracks_with_date_range() {
 
     // Test with date range
     let from = 1_715_637_600; // 2024-05-14 00:00:00
-    let to = 1_715_724_000;   // 2024-05-15 00:00:00
+    let to = 1_715_724_000; // 2024-05-15 00:00:00
 
     let tracks = client
         .recent_tracks("testuser")
@@ -314,10 +314,7 @@ async fn test_error_handling_missing_method() {
     let client = LastFmClient::with_http(config, Arc::new(mock));
 
     // This should fail because the mock doesn't have a response for this method
-    let result = client
-        .recent_tracks("testuser")
-        .fetch()
-        .await;
+    let result = client.recent_tracks("testuser").fetch().await;
 
     assert!(result.is_err());
 
@@ -344,15 +341,12 @@ async fn test_api_error_response() {
         json!({
             "error": 10,
             "message": "Invalid API key"
-        })
+        }),
     );
 
     let client = LastFmClient::with_http(config, Arc::new(mock));
 
-    let result = client
-        .recent_tracks("testuser")
-        .fetch()
-        .await;
+    let result = client.recent_tracks("testuser").fetch().await;
 
     assert!(result.is_err());
 }
@@ -770,7 +764,7 @@ async fn test_date_range_validation_invalid() {
 
     // Invalid: to <= from
     let from = 1_715_724_000; // 2024-05-15 00:00:00
-    let to = 1_715_637_600;   // 2024-05-14 00:00:00 (earlier!)
+    let to = 1_715_637_600; // 2024-05-14 00:00:00 (earlier!)
 
     let result = client
         .recent_tracks("testuser")
@@ -817,7 +811,7 @@ async fn test_date_range_validation_valid() {
 
     // Valid: to > from
     let from = 1_715_637_600; // 2024-05-14 00:00:00
-    let to = 1_715_724_000;   // 2024-05-15 00:00:00
+    let to = 1_715_724_000; // 2024-05-15 00:00:00
 
     let result = client
         .recent_tracks("testuser")
@@ -852,7 +846,7 @@ async fn test_date_range_validation_extended() {
 
     // Invalid date range with extended fetch
     let from = 1_715_724_000; // 2024-05-15
-    let to = 1_715_637_600;   // 2024-05-14 (earlier!)
+    let to = 1_715_637_600; // 2024-05-14 (earlier!)
 
     let result = client
         .recent_tracks("testuser")

@@ -3,7 +3,7 @@ use csv::Writer;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{prelude::*, Result};
+use std::io::{Result, prelude::*};
 
 use crate::lastfm_handler::TrackPlayInfo;
 

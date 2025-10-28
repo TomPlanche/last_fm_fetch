@@ -3,13 +3,15 @@ use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{RecentTrack, RecentTrackExtended, TrackLimit, UserRecentTracks, UserRecentTracksExtended};
+use crate::types::{
+    RecentTrack, RecentTrackExtended, TrackLimit, UserRecentTracks, UserRecentTracksExtended,
+};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{fetch_tracks, TrackContainer};
+use super::fetch_utils::{TrackContainer, fetch_tracks};
 
 /// Client for fetching recent tracks
 pub struct RecentTracksClient {
@@ -24,11 +26,7 @@ impl RecentTracksClient {
 
     /// Create a builder for recent tracks requests
     pub fn builder(&self, username: impl Into<String>) -> RecentTracksRequestBuilder {
-        RecentTracksRequestBuilder::new(
-            self.http.clone(),
-            self.config.clone(),
-            username.into(),
-        )
+        RecentTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 }
 
@@ -103,11 +101,9 @@ impl RecentTracksRequestBuilder {
         if let (Some(from), Some(to)) = (self.from, self.to)
             && to <= from
         {
-            return Err(crate::error::LastFmError::Config(
-                format!(
-                    "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
-                )
-            ));
+            return Err(crate::error::LastFmError::Config(format!(
+                "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
+            )));
         }
 
         let mut params = self.build_params();
@@ -134,11 +130,9 @@ impl RecentTracksRequestBuilder {
         if let (Some(from), Some(to)) = (self.from, self.to)
             && to <= from
         {
-            return Err(crate::error::LastFmError::Config(
-                format!(
-                    "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
-                )
-            ));
+            return Err(crate::error::LastFmError::Config(format!(
+                "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
+            )));
         }
 
         let mut params = self.build_params();
@@ -148,7 +142,8 @@ impl RecentTracksRequestBuilder {
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_tracks_extended::<UserRecentTracksExtended>(limit, params).await
+        self.fetch_tracks_extended::<UserRecentTracksExtended>(limit, params)
+            .await
     }
 
     /// Fetch tracks and save them to a file
@@ -165,7 +160,8 @@ impl RecentTracksRequestBuilder {
     pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
         let tracks = self.fetch().await?;
         tracing::info!("Saving {} recent tracks to file", tracks.len());
-        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        let filename = FileHandler::save(&tracks, &format, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -180,10 +176,15 @@ impl RecentTracksRequestBuilder {
     ///
     /// # Returns
     /// * `Result<String>` - The filename of the saved file
-    pub async fn fetch_extended_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
+    pub async fn fetch_extended_and_save(
+        self,
+        format: FileFormat,
+        filename_prefix: &str,
+    ) -> Result<String> {
         let tracks = self.fetch_extended().await?;
         tracing::info!("Saving {} recent tracks (extended) to file", tracks.len());
-        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        let filename = FileHandler::save(&tracks, &format, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -224,7 +225,7 @@ impl RecentTracksRequestBuilder {
     /// * `Result<Option<RecentTrack>>` - The currently playing track if any
     pub async fn check_currently_playing(self) -> Result<Option<RecentTrack>> {
         let tracks = self.limit(1).fetch().await?;
-        
+
         // Check if the first track has the "now playing" attribute
         Ok(tracks.first().and_then(|track| {
             if track
@@ -290,7 +291,6 @@ impl RecentTracksRequestBuilder {
         )
         .await
     }
-
 }
 
 impl TrackContainer for UserRecentTracks {

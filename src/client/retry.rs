@@ -142,7 +142,6 @@ impl<C: HttpClient + Send + Sync> HttpClient for RetryClient<C> {
                     );
 
                     tokio::time::sleep(delay).await;
-                    
                 }
                 Err(e) => return Err(e),
             }
@@ -177,12 +176,8 @@ mod tests {
 
     #[test]
     fn test_custom_policy() {
-        let policy = RetryPolicy::custom(
-            5,
-            Duration::from_millis(500),
-            Duration::from_secs(5),
-            true,
-        );
+        let policy =
+            RetryPolicy::custom(5, Duration::from_millis(500), Duration::from_secs(5), true);
 
         assert_eq!(policy.max_attempts(), 5);
         assert_eq!(policy.backoff(0), Duration::from_millis(500));
@@ -194,14 +189,13 @@ mod tests {
         use crate::client::MockClient;
         use serde_json::json;
 
-        let mock = MockClient::new().with_response(
-            "test.method",
-            json!({"success": true}),
-        );
+        let mock = MockClient::new().with_response("test.method", json!({"success": true}));
 
         let retry_client = RetryClient::new(mock, RetryPolicy::exponential(3));
 
-        let result = retry_client.get("http://example.com?method=test.method").await;
+        let result = retry_client
+            .get("http://example.com?method=test.method")
+            .await;
         assert!(result.is_ok());
     }
 

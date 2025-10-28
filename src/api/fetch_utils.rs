@@ -8,7 +8,7 @@ use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::constants::{BASE_URL, API_MAX_LIMIT, CHUNK_MULTIPLIER, CHUNK_SIZE};
+use super::constants::{API_MAX_LIMIT, BASE_URL, CHUNK_MULTIPLIER, CHUNK_SIZE};
 
 /// Trait for containers that hold track data
 pub trait TrackContainer {

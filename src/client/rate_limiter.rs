@@ -186,15 +186,14 @@ mod tests {
         use crate::client::MockClient;
         use serde_json::json;
 
-        let mock = MockClient::new().with_response(
-            "test.method",
-            json!({"success": true}),
-        );
+        let mock = MockClient::new().with_response("test.method", json!({"success": true}));
 
         let limiter = Arc::new(RateLimiter::new(5, Duration::from_secs(1)));
         let rate_limited = RateLimitedClient::new(mock, limiter);
 
-        let result = rate_limited.get("http://example.com?method=test.method").await;
+        let result = rate_limited
+            .get("http://example.com?method=test.method")
+            .await;
         assert!(result.is_ok());
     }
 

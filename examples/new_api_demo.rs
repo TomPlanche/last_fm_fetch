@@ -19,12 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 1: Fetch limited number of recent tracks
     println!("Example 1: Fetching last 10 tracks...");
-    match client
-        .recent_tracks("tom_planche")
-        .limit(10)
-        .fetch()
-        .await
-    {
+    match client.recent_tracks("tom_planche").limit(10).fetch().await {
         Ok(tracks) => {
             println!("✓ Fetched {} tracks", tracks.len());
             for (i, track) in tracks.iter().enumerate().take(5) {
@@ -40,12 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 2: Fetch recent tracks with a safe upper bound
     println!("Example 2: Fetching up to 200 recent tracks...");
-    match client
-        .recent_tracks("tom_planche")
-        .limit(200)
-        .fetch()
-        .await
-    {
+    match client.recent_tracks("tom_planche").limit(200).fetch().await {
         Ok(tracks) => {
             println!("✓ Fetched {} tracks (capped)", tracks.len());
         }
@@ -89,10 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(tracks) => {
             println!("✓ Fetched {} extended tracks", tracks.len());
             for track in &tracks {
-                println!("  - {} by {} (Album: {})",
-                    track.name,
-                    track.artist.name,
-                    track.album.name
+                println!(
+                    "  - {} by {} (Album: {})",
+                    track.name, track.artist.name, track.album.name
                 );
             }
         }

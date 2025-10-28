@@ -9,8 +9,7 @@ pub enum Period {
     TwelveMonth,
 }
 
-impl Period {
-}
+impl Period {}
 
 /// Track limit options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

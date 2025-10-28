@@ -8,7 +8,7 @@ use crate::types::{LovedTrack, TrackLimit, UserLovedTracks};
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{fetch_tracks, TrackContainer};
+use super::fetch_utils::{TrackContainer, fetch_tracks};
 
 /// Client for fetching loved tracks
 pub struct LovedTracksClient {
@@ -23,11 +23,7 @@ impl LovedTracksClient {
 
     /// Create a builder for loved tracks requests
     pub fn builder(&self, username: impl Into<String>) -> LovedTracksRequestBuilder {
-        LovedTracksRequestBuilder::new(
-            self.http.clone(),
-            self.config.clone(),
-            username.into(),
-        )
+        LovedTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 }
 
@@ -89,7 +85,8 @@ impl LovedTracksRequestBuilder {
     pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
         let tracks = self.fetch().await?;
         tracing::info!("Saving {} loved tracks to file", tracks.len());
-        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        let filename = FileHandler::save(&tracks, &format, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
     }
 
@@ -121,15 +118,12 @@ impl LovedTracksRequestBuilder {
         Ok(())
     }
 
-    async fn fetch_tracks<T>(
-        &self,
-        limit: TrackLimit,
-    ) -> Result<Vec<LovedTrack>>
+    async fn fetch_tracks<T>(&self, limit: TrackLimit) -> Result<Vec<LovedTrack>>
     where
         T: DeserializeOwned + TrackContainer<TrackType = LovedTrack>,
     {
         use crate::url_builder::QueryParams;
-        
+
         fetch_tracks::<LovedTrack, T>(
             self.http.clone(),
             self.config.clone(),
@@ -140,7 +134,6 @@ impl LovedTracksRequestBuilder {
         )
         .await
     }
-
 }
 
 impl TrackContainer for UserLovedTracks {

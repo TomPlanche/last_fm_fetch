@@ -8,7 +8,7 @@ use crate::url_builder::QueryParams;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{fetch_tracks, TrackContainer};
+use super::fetch_utils::{TrackContainer, fetch_tracks};
 
 /// Period options for Last.fm time range filters
 #[derive(Debug, Clone, Copy)]
@@ -48,11 +48,7 @@ impl TopTracksClient {
 
     /// Create a builder for top tracks requests
     pub fn builder(&self, username: impl Into<String>) -> TopTracksRequestBuilder {
-        TopTracksRequestBuilder::new(
-            self.http.clone(),
-            self.config.clone(),
-            username.into(),
-        )
+        TopTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 }
 
@@ -129,7 +125,8 @@ impl TopTracksRequestBuilder {
     pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
         let tracks = self.fetch().await?;
         tracing::info!("Saving {} top tracks to file", tracks.len());
-        let filename = FileHandler::save(&tracks, &format, filename_prefix).map_err(crate::error::LastFmError::Io)?;
+        let filename = FileHandler::save(&tracks, &format, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
     }
 

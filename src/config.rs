@@ -180,9 +180,9 @@ impl ConfigBuilder {
 
         Ok(Config {
             api_key,
-            user_agent: self.user_agent.unwrap_or_else(|| {
-                format!("async_lastfm/{}", env!("CARGO_PKG_VERSION"))
-            }),
+            user_agent: self
+                .user_agent
+                .unwrap_or_else(|| format!("async_lastfm/{}", env!("CARGO_PKG_VERSION"))),
             timeout: self.timeout.unwrap_or(Duration::from_secs(30)),
             max_concurrent_requests: self.max_concurrent_requests.unwrap_or(5),
             retry_attempts: self.retry_attempts.unwrap_or(3),

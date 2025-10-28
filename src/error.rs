@@ -21,9 +21,7 @@ pub enum LastFmError {
 
     /// Represents rate limiting error
     #[error("Rate limit exceeded. Retry after {retry_after:?}")]
-    RateLimited {
-        retry_after: Option<Duration>,
-    },
+    RateLimited { retry_after: Option<Duration> },
 
     /// Represents HTTP/network errors
     #[error("Network error: {0}")]
@@ -42,7 +40,9 @@ pub enum LastFmError {
     Csv(#[from] csv::Error),
 
     /// Represents missing environment variable errors
-    #[error("Missing required environment variable: {0}\nPlease set it in your environment or .env file")]
+    #[error(
+        "Missing required environment variable: {0}\nPlease set it in your environment or .env file"
+    )]
     MissingEnvVar(String),
 
     /// Represents configuration errors
