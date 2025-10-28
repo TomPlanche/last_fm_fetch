@@ -84,41 +84,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      # Cache tarpaulin installation
-      - name: Cache tarpaulin
-        id: cache-tarpaulin
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/cargo-tarpaulin
-          key: ${{ runner.os }}-cargo-tarpaulin-0.30.0
-
-      - name: Install tarpaulin
-        if: steps.cache-tarpaulin.outputs.cache-hit != 'true'
-        run: cargo install cargo-tarpaulin --version 0.30.0
-
-      - name: Generate coverage
-        run: cargo tarpaulin --workspace --all-features --timeout 300 --out xml --verbose
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./cobertura.xml
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   build-release:
     name: Build Release
     runs-on: ubuntu-latest
