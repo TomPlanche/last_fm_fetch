@@ -1,0 +1,7 @@
+# Clippy configuration for lastfm-client
+
+# Allow some pedantic lints that don't add much value
+# or would require extensive refactoring
+
+# Builder patterns naturally return Self
+allow-dbg-in-tests = true

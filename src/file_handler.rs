@@ -3,7 +3,7 @@ use csv::Writer;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{prelude::*, Result};
+use std::io::{Result, prelude::*};
 
 use crate::lastfm_handler::TrackPlayInfo;
 
@@ -56,11 +56,10 @@ impl FileHandler {
                 // Special case: if T is a HashMap with track info
                 if std::any::type_name::<T>()
                     == std::any::type_name::<HashMap<String, TrackPlayInfo>>()
+                    && let Some(single_item) = data.first()
                 {
-                    if let Some(single_item) = data.first() {
-                        Self::save_single(single_item, &filename)?;
-                        return Ok(filename);
-                    }
+                    Self::save_single(single_item, &filename)?;
+                    return Ok(filename);
                 }
                 Self::save_as_json(data, &filename)
             }
