@@ -170,6 +170,44 @@ match client.recent_tracks("username").limit(50).fetch().await {
 
 ---
 
+### Friendly error messages (Display vs Debug)
+
+If you see output like `MissingEnvVar("LAST_FM_API_KEY")`, the error is being printed with Debug formatting (`{:?}`) somewhere. This library implements friendly Display messages (via `#[error("...")]`), so prefer Display (`{}`) when printing errors.
+
+Use an explicit `main` error handler to guarantee Display formatting:
+
+```rust
+use dotenvy::dotenv;
+use lastfm_client::LastFmClient;
+
+#[tokio::main]
+async fn main() {
+    if let Err(err) = run().await {
+        eprintln!("Error: {err}"); // Display, not Debug
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+
+    let client = LastFmClient::builder()
+        .from_env()? // Missing LAST_FM_API_KEY → friendly message via Display
+        .build_client()?;
+
+    let tracks = client.recent_tracks("username").limit(50).fetch().await?;
+    println!("Fetched {} tracks", tracks.len());
+    Ok(())
+}
+```
+
+Tips:
+- Use `eprintln!("{}", err)` or `eprintln!("Error: {err}")` (Display), avoid `{:?}`/`{:#?}` (Debug).
+- If you keep `fn main() -> Result<…>`, your runtime may show Debug output on failure. The explicit handler above guarantees Display.
+- This applies to all errors from this library, including configuration errors like missing `LAST_FM_API_KEY`.
+
+---
+
 ## V1.x API (Legacy, Fully Supported)
 
 ### Basic Example
