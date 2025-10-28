@@ -94,9 +94,7 @@ impl HttpClient for ReqwestClient {
 
         if !status.is_success() {
             #[cfg(debug_assertions)]
-            eprintln!(
-                "HTTP error {status} for URL: {url}\nRaw body:\n{body_text}"
-            );
+            eprintln!("HTTP error {status} for URL: {url}\nRaw body:\n{body_text}");
 
             // Try to parse as Last.fm API error response
             if let Ok(error) = serde_json::from_str::<LastFmErrorResponse>(&body_text) {
@@ -151,9 +149,7 @@ impl HttpClient for ReqwestClient {
             }
             Err(err) => {
                 #[cfg(debug_assertions)]
-                eprintln!(
-                    "JSON parse failed for URL: {url}\nError: {err}\nBody:\n{body_text}"
-                );
+                eprintln!("JSON parse failed for URL: {url}\nError: {err}\nBody:\n{body_text}");
                 Err(err.into())
             }
         }
