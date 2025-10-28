@@ -24,6 +24,9 @@ pub use config::{Config, ConfigBuilder, RateLimit};
 pub use error::{LastFmError, Result};
 pub use types::{Period, TrackLimit};
 
+// Re-export API clients
+pub use api::{LovedTracksClient, LovedTracksRequestBuilder, RecentTracksClient, RecentTracksRequestBuilder};
+
 // Re-export commonly used types
 pub use types::{
     LovedTrack, RecentTrack, RecentTrackExtended, TopTrack, UserLovedTracks, UserRecentTracks,
