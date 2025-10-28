@@ -95,8 +95,21 @@ impl RecentTracksRequestBuilder {
     /// Fetch the tracks
     ///
     /// # Errors
-    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    /// Returns an error if:
+    /// - The HTTP request fails or the response cannot be parsed
+    /// - The date range is invalid (to <= from)
     pub async fn fetch(self) -> Result<Vec<RecentTrack>> {
+        // Validate date range if both from and to are set
+        if let (Some(from), Some(to)) = (self.from, self.to)
+            && to <= from
+        {
+            return Err(crate::error::LastFmError::Config(
+                format!(
+                    "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
+                )
+            ));
+        }
+
         let mut params = self.build_params();
 
         if self.extended {
@@ -113,8 +126,21 @@ impl RecentTracksRequestBuilder {
     /// Fetch tracks with extended information
     ///
     /// # Errors
-    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    /// Returns an error if:
+    /// - The HTTP request fails or the response cannot be parsed
+    /// - The date range is invalid (to <= from)
     pub async fn fetch_extended(self) -> Result<Vec<RecentTrackExtended>> {
+        // Validate date range if both from and to are set
+        if let (Some(from), Some(to)) = (self.from, self.to)
+            && to <= from
+        {
+            return Err(crate::error::LastFmError::Config(
+                format!(
+                    "Invalid date range: 'to' timestamp ({to}) must be greater than 'from' timestamp ({from})"
+                )
+            ));
+        }
+
         let mut params = self.build_params();
         params.insert("extended".to_string(), "1".to_string());
 

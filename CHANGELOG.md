@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `.limit(n)` - Limit number of tracks
   - `.unlimited()` - Fetch all available tracks
   - `.since(timestamp)` - Fetch tracks since a timestamp
-  - `.between(from, to)` - Fetch tracks between two timestamps
+  - `.between(from, to)` - Fetch tracks between two timestamps (validates to > from)
   - `.extended(bool)` - Include extended track information
   - `.fetch()` - Execute request and return results
   - `.fetch_extended()` - Execute request with extended information
@@ -45,7 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Enhanced Error Handling
 - Rich error types with context and retry hints
 - `LastFmError::Api`: Now includes method name, error code, and retryable flag
+- **API error classification**: Automatic categorization of Last.fm error codes
+  - Retryable: 8 (operation failed), 11 (service offline), 16 (temporary), 29 (rate limit)
+  - Non-retryable: 6 (invalid params), 9 (invalid session), 10 (invalid key), etc.
 - `LastFmError::RateLimited`: Includes optional retry_after duration
+- Detection of Last.fm API quirk: errors returned with HTTP 200 status
 - `.is_retryable()` method to check if error can be retried
 - `.retry_after()` method to get suggested retry delay
 
@@ -73,10 +77,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Detailed PHASE2_SUMMARY.md documenting the refactoring process
 
 #### Testing
-- 35 tests (up from 7 in v1.1.0) - 400% increase
-- Mock HTTP client for unit testing
-- Tests for retry logic, rate limiting, error handling
+- 62 tests (up from 7 in v1.1.0) - 786% increase
+  - 34 unit tests in `src/`
+  - 28 integration tests in `tests/integration_test.rs`
+  - 13 doc tests
+- Comprehensive integration test suite with mock HTTP responses
+- Tests for retry logic, rate limiting, error handling, date validation
 - Tests for custom deserializers and type conversions
+- Fast execution (< 100ms) using mock strategy
+- See INTEGRATION_TESTS.md for detailed test documentation
 
 ### Changed
 
@@ -118,6 +127,7 @@ Nothing deprecated. The v1.x API remains fully supported.
 - Type conversion overhead by unifying API and storage types
 - Inconsistent error handling across different API methods
 - Missing error context in API failures
+- Date range validation prevents invalid API calls with clear error messages
 
 ### Security
 
