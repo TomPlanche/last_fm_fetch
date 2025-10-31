@@ -68,7 +68,7 @@ impl AnalysisHandler {
     /// # Arguments
     /// * `file_path` - Path to the JSON file containing track data
     /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
-    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
+    ///   counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Errors
     /// * `std::io::Error` - If there was an error reading the file
@@ -91,9 +91,9 @@ impl AnalysisHandler {
     /// Analyze a vector of tracks
     ///
     /// # Arguments
-    /// * `tracks` - Vector of tracks to analyze (must implement TrackAnalyzable)
+    /// * `tracks` - Vector of tracks to analyze (must implement `TrackAnalyzable`)
     /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
-    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
+    ///   counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Returns
     /// * `TrackStats` - Analysis results containing play counts, most played tracks, and threshold-based groupings

@@ -84,7 +84,7 @@ impl TopTracksRequestBuilder {
     ///
     /// # Arguments
     /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
-    ///             If you need all tracks, use `unlimited()` instead.
+    ///   If you need all tracks, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -102,8 +102,8 @@ impl TopTracksRequestBuilder {
     ///
     /// # Arguments
     /// * `period` - The time range to calculate top tracks over. Use `Period::Overall` for all-time,
-    ///              `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
-    ///              If not set, defaults to the Last.fm API's default behavior (typically overall).
+    ///   `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
+    ///   If not set, defaults to the Last.fm API's default behavior (typically overall).
     ///
     /// # Example
     /// ```ignore
