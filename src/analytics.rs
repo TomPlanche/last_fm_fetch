@@ -66,12 +66,13 @@ impl AnalysisHandler {
     /// Analyze tracks from a JSON file
     ///
     /// # Arguments
-    /// * `filename` - Path to the JSON file
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `file_path` - Path to the JSON file containing track data
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Errors
-    /// * `FileError` - If there was an error reading or writing the file
-    /// * `InvalidUtf8` - If the file path is not valid UTF-8
+    /// * `std::io::Error` - If there was an error reading the file
+    /// * `serde_json::Error` - If the JSON cannot be parsed
     ///
     /// # Returns
     /// * `Result<TrackStats, Box<dyn std::error::Error>>` - Analysis results
@@ -90,11 +91,12 @@ impl AnalysisHandler {
     /// Analyze a vector of tracks
     ///
     /// # Arguments
-    /// * `tracks` - Vector of tracks to analyze
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `tracks` - Vector of tracks to analyze (must implement TrackAnalyzable)
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Returns
-    /// * `TrackStats` - Analysis results
+    /// * `TrackStats` - Analysis results containing play counts, most played tracks, and threshold-based groupings
     pub fn analyze_tracks<T: TrackAnalyzable>(tracks: &[T], threshold: usize) -> TrackStats {
         let mut artist_play_counts: HashMap<String, usize> = HashMap::new();
         let mut track_play_counts: HashMap<String, usize> = HashMap::new();

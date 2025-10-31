@@ -55,6 +55,10 @@ impl RecentTracksRequestBuilder {
     }
 
     /// Set the maximum number of tracks to fetch
+    ///
+    /// # Arguments
+    /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
+    ///             If you need all tracks, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -69,6 +73,19 @@ impl RecentTracksRequestBuilder {
     }
 
     /// Fetch tracks from this timestamp onwards
+    ///
+    /// # Arguments
+    /// * `timestamp` - Unix timestamp in seconds (not milliseconds) since January 1, 1970 UTC
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Fetch tracks since January 1, 2024 00:00:00 UTC
+    /// let tracks = client.recent_tracks()
+    ///     .builder("username")
+    ///     .since(1704067200)
+    ///     .fetch()
+    ///     .await?;
+    /// ```
     #[must_use]
     pub fn since(mut self, timestamp: i64) -> Self {
         self.from = Some(timestamp);
@@ -76,6 +93,20 @@ impl RecentTracksRequestBuilder {
     }
 
     /// Fetch tracks between two timestamps
+    ///
+    /// # Arguments
+    /// * `from` - Start Unix timestamp in seconds (not milliseconds) since January 1, 1970 UTC
+    /// * `to` - End Unix timestamp in seconds (not milliseconds) since January 1, 1970 UTC
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Fetch tracks between January 1, 2024 and February 1, 2024 (UTC)
+    /// let tracks = client.recent_tracks()
+    ///     .builder("username")
+    ///     .between(1704067200, 1706745600)
+    ///     .fetch()
+    ///     .await?;
+    /// ```
     #[must_use]
     pub fn between(mut self, from: i64, to: i64) -> Self {
         self.from = Some(from);
@@ -95,7 +126,7 @@ impl RecentTracksRequestBuilder {
     /// # Errors
     /// Returns an error if:
     /// - The HTTP request fails or the response cannot be parsed
-    /// - The date range is invalid (to <= from)
+    /// - The date range is invalid (to <= from when both timestamps are set)
     pub async fn fetch(self) -> Result<Vec<RecentTrack>> {
         // Validate date range if both from and to are set
         if let (Some(from), Some(to)) = (self.from, self.to)
@@ -124,7 +155,7 @@ impl RecentTracksRequestBuilder {
     /// # Errors
     /// Returns an error if:
     /// - The HTTP request fails or the response cannot be parsed
-    /// - The date range is invalid (to <= from)
+    /// - The date range is invalid (to <= from when both timestamps are set)
     pub async fn fetch_extended(self) -> Result<Vec<RecentTrackExtended>> {
         // Validate date range if both from and to are set
         if let (Some(from), Some(to)) = (self.from, self.to)
@@ -191,13 +222,15 @@ impl RecentTracksRequestBuilder {
     /// Analyze tracks and return statistics
     ///
     /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately in `tracks_below_threshold`. For example, use 5 to identify
+    ///                 tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
     ///
     /// # Returns
-    /// * `Result<crate::analytics::TrackStats>` - Analysis results
+    /// * `Result<crate::analytics::TrackStats>` - Analysis results including play counts, most played tracks, etc.
     pub async fn analyze(self, threshold: usize) -> Result<crate::analytics::TrackStats> {
         let tracks = self.fetch().await?;
         Ok(AnalysisHandler::analyze_tracks(&tracks, threshold))
@@ -206,7 +239,8 @@ impl RecentTracksRequestBuilder {
     /// Analyze tracks and print statistics
     ///
     /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.

@@ -2,6 +2,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
 // UTILS - Custom deserializers
+
+/// Custom deserializer that accepts both string and numeric u32 values
+///
+/// The Last.fm API sometimes returns numeric values as strings (e.g., "12345" instead of 12345).
+/// This deserializer handles both formats and also removes underscores from string representations.
 fn u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
@@ -22,6 +27,10 @@ where
     }
 }
 
+/// Custom deserializer that accepts both string and boolean values
+///
+/// The Last.fm API returns boolean values as strings ("0"/"1" or "true"/"false").
+/// This deserializer converts them to proper Rust boolean values.
 fn bool_from_str<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
     D: Deserializer<'de>,
@@ -45,144 +54,225 @@ where
 
 // BASE TYPES =================================================================
 
+/// Basic type containing MusicBrainz ID and text content
+///
+/// Used for artist and album information in track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseMbidText {
+    /// MusicBrainz Identifier (may be empty string if not available)
     pub mbid: String,
+    /// Text content (artist name, album name, etc.)
     #[serde(rename = "#text")]
     pub text: String,
 }
 
+/// Extended object type with MusicBrainz ID, URL, and name
+///
+/// Used for artist and album information in extended track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseObject {
+    /// MusicBrainz Identifier (may be empty string if not available)
     pub mbid: String,
+    /// Last.fm URL for this object
     #[serde(default)]
     pub url: String,
+    /// Name of the object (artist name, album name, etc.)
     #[serde(alias = "#text")]
     pub name: String,
 }
 
+/// Image information for tracks and albums
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TrackImage {
+    /// Image size (e.g., "small", "medium", "large", "extralarge")
     pub size: String,
+    /// URL to the image
     #[serde(rename = "#text")]
     pub text: String,
 }
 
+/// Streamability information for a track
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Streamable {
+    /// Whether the full track is streamable ("0" or "1")
     pub fulltrack: String,
+    /// Additional streamability information
     #[serde(rename = "#text")]
     pub text: String,
 }
 
+/// Detailed artist information
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Artist {
+    /// Artist name
     pub name: String,
+    /// MusicBrainz Identifier (may be empty string if not available)
     pub mbid: String,
+    /// Last.fm URL for this artist
     #[serde(default)]
     pub url: String,
+    /// Artist images in various sizes
     pub image: Vec<TrackImage>,
 }
 
 // DATE TYPE ==================================================================
 // Unified - handles both API deserialization and storage
 
+/// Date/timestamp information for tracks
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Date {
+    /// Unix timestamp in seconds (not milliseconds) since January 1, 1970 UTC
     #[serde(deserialize_with = "u32_from_str")]
     pub uts: u32,
+    /// Human-readable date string (e.g., "31 Jan 2024, 12:00")
     #[serde(rename = "#text")]
     pub text: String,
 }
 
 // ATTRIBUTES =================================================================
 
+/// Attributes for recent tracks indicating current playback status
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Attributes {
+    /// Whether this track is currently playing ("true" or "false")
     pub nowplaying: String,
 }
 
+/// Rank attributes for top tracks
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RankAttr {
+    /// Numeric rank as a string (e.g., "1", "2", "3")
     pub rank: String,
 }
 
 // RECENT TRACK ===============================================================
 // Unified - no more ApiRecentTrack vs RecentTrack split!
 
+/// A track from a user's recent listening history
+///
+/// Retrieved from the `user.getrecenttracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RecentTrack {
+    /// Artist information
     pub artist: BaseMbidText,
+    /// Whether the track is streamable on Last.fm
     #[serde(deserialize_with = "bool_from_str")]
     pub streamable: bool,
+    /// Track/album images in various sizes
     pub image: Vec<TrackImage>,
+    /// Album information
     pub album: BaseMbidText,
+    /// Attributes (present if track is currently playing)
     #[serde(rename = "@attr")]
     pub attr: Option<Attributes>,
+    /// When the track was played (None if currently playing)
     pub date: Option<Date>,
+    /// Track name
     pub name: String,
+    /// MusicBrainz track identifier (may be empty string)
     pub mbid: String,
+    /// Last.fm URL for this track
     pub url: String,
 }
 
+/// A track from recent listening history with extended artist/album information
+///
+/// Retrieved when using the `extended=1` parameter with `user.getrecenttracks`
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RecentTrackExtended {
+    /// Extended artist information (includes URL)
     pub artist: BaseObject,
+    /// Whether the track is streamable on Last.fm
     #[serde(deserialize_with = "bool_from_str")]
     pub streamable: bool,
+    /// Track/album images in various sizes
     pub image: Vec<TrackImage>,
+    /// Extended album information (includes URL)
     pub album: BaseObject,
+    /// Additional attributes (format varies, use HashMap)
     #[serde(rename = "@attr")]
     pub attr: Option<HashMap<String, String>>,
+    /// When the track was played (None if currently playing)
     pub date: Option<Date>,
+    /// Track name
     pub name: String,
+    /// MusicBrainz track identifier (may be empty string)
     pub mbid: String,
+    /// Last.fm URL for this track
     #[serde(default)]
     pub url: String,
 }
 
 // LOVED TRACK ================================================================
 
+/// A track that a user has marked as "loved" on Last.fm
+///
+/// Retrieved from the `user.getlovedtracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LovedTrack {
+    /// Artist information with URL
     pub artist: BaseObject,
+    /// When the track was loved
     pub date: Date,
+    /// Track/album images in various sizes
     pub image: Vec<TrackImage>,
+    /// Streamability information
     pub streamable: Streamable,
+    /// Track name
     pub name: String,
+    /// MusicBrainz track identifier (may be empty string)
     pub mbid: String,
+    /// Last.fm URL for this track
     pub url: String,
 }
 
 // TOP TRACK ==================================================================
 
+/// A track from a user's top tracks, ranked by play count
+///
+/// Retrieved from the `user.gettoptracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TopTrack {
+    /// Streamability information
     pub streamable: Streamable,
+    /// MusicBrainz track identifier (may be empty string)
     pub mbid: String,
+    /// Track name
     pub name: String,
+    /// Track/album images in various sizes
     pub image: Vec<TrackImage>,
+    /// Artist information with URL
     pub artist: BaseObject,
+    /// Last.fm URL for this track
     pub url: String,
+    /// Track duration in seconds
     #[serde(deserialize_with = "u32_from_str")]
     pub duration: u32,
+    /// Rank attributes (position in top tracks)
     #[serde(rename = "@attr")]
     pub attr: RankAttr,
+    /// Total number of times this track has been played
     #[serde(deserialize_with = "u32_from_str")]
     pub playcount: u32,
 }
 
 // RESPONSE WRAPPERS ==========================================================
 
+/// Base response metadata included in all paginated API responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseResponse {
+    /// Username the request was made for
     pub user: String,
+    /// Total number of pages available
     #[serde(deserialize_with = "u32_from_str", rename = "totalPages")]
     pub total_pages: u32,
+    /// Current page number (1-indexed)
     #[serde(deserialize_with = "u32_from_str")]
     pub page: u32,
+    /// Number of items per page
     #[serde(deserialize_with = "u32_from_str", rename = "perPage")]
     pub per_page: u32,
+    /// Total number of items available across all pages
     #[serde(deserialize_with = "u32_from_str")]
     pub total: u32,
 }
