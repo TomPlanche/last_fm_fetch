@@ -7,9 +7,12 @@ use std::io::{Result, prelude::*};
 
 use crate::lastfm_handler::TrackPlayInfo;
 
+/// File format options for saving track data
 #[allow(dead_code)]
 pub enum FileFormat {
+    /// Save as JSON format with pretty printing
     Json,
+    /// Save as CSV format with headers
     Csv,
 }
 
@@ -18,17 +21,19 @@ pub struct FileHandler;
 impl FileHandler {
     /// Save data to a file in the data directory.
     ///
+    /// Files are saved to the `data/` directory (created if it doesn't exist) with a timestamp in the filename.
+    ///
     /// # Arguments
-    /// * `data` - Data to save
-    /// * `format` - File format to save as
-    /// * `filename_prefix` - Prefix for the filename
+    /// * `data` - Data to save (must implement Serialize)
+    /// * `format` - File format to save as (`FileFormat::Json` for JSON or `FileFormat::Csv` for CSV)
+    /// * `filename_prefix` - Prefix for the filename. The final filename will be `{prefix}_{timestamp}.{extension}`
     ///
     /// # Errors
-    /// * `std::io::Error` - If the file cannot be opened or written to
+    /// * `std::io::Error` - If the file cannot be opened or written to, or if the data directory cannot be created
     /// * `serde_json::Error` - If the JSON cannot be serialized
     ///
     /// # Returns
-    /// * `Result<String>` - Filename of the saved file
+    /// * `Result<String>` - Full path to the saved file (e.g., "data/recent_tracks_20240101_120000.json")
     pub fn save<T: Serialize>(
         data: &[T],
         format: &FileFormat,

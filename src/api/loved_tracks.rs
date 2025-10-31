@@ -46,6 +46,10 @@ impl LovedTracksRequestBuilder {
     }
 
     /// Set the maximum number of tracks to fetch
+    ///
+    /// # Arguments
+    /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
+    ///             If you need all tracks, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -93,13 +97,15 @@ impl LovedTracksRequestBuilder {
     /// Analyze tracks and return statistics
     ///
     /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately in `tracks_below_threshold`. For example, use 5 to identify
+    ///                 tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
     ///
     /// # Returns
-    /// * `Result<crate::analytics::TrackStats>` - Analysis results
+    /// * `Result<crate::analytics::TrackStats>` - Analysis results including play counts, most played tracks, etc.
     pub async fn analyze(self, threshold: usize) -> Result<crate::analytics::TrackStats> {
         let tracks = self.fetch().await?;
         Ok(AnalysisHandler::analyze_tracks(&tracks, threshold))
@@ -108,7 +114,8 @@ impl LovedTracksRequestBuilder {
     /// Analyze tracks and print statistics
     ///
     /// # Arguments
-    /// * `threshold` - Threshold for counting tracks with plays below this number
+    /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
+    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.

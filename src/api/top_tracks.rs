@@ -11,13 +11,21 @@ use std::sync::Arc;
 use super::fetch_utils::{TrackContainer, fetch_tracks};
 
 /// Period options for Last.fm time range filters
+///
+/// These periods define the time range for calculating top tracks.
 #[derive(Debug, Clone, Copy)]
 pub enum Period {
+    /// All-time top tracks (no time limit)
     Overall,
+    /// Top tracks from the last 7 days
     Week,
+    /// Top tracks from the last month (30 days)
     Month,
+    /// Top tracks from the last 3 months (90 days)
     ThreeMonth,
+    /// Top tracks from the last 6 months (180 days)
     SixMonth,
+    /// Top tracks from the last 12 months (365 days)
     TwelveMonth,
 }
 
@@ -73,6 +81,10 @@ impl TopTracksRequestBuilder {
     }
 
     /// Set the maximum number of tracks to fetch
+    ///
+    /// # Arguments
+    /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
+    ///             If you need all tracks, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -87,6 +99,22 @@ impl TopTracksRequestBuilder {
     }
 
     /// Set the time period for top tracks
+    ///
+    /// # Arguments
+    /// * `period` - The time range to calculate top tracks over. Use `Period::Overall` for all-time,
+    ///              `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
+    ///              If not set, defaults to the Last.fm API's default behavior (typically overall).
+    ///
+    /// # Example
+    /// ```ignore
+    /// use lastfm_client::api::Period;
+    ///
+    /// let tracks = client.top_tracks("username")
+    ///     .period(Period::Month)
+    ///     .limit(50)
+    ///     .fetch()
+    ///     .await?;
+    /// ```
     #[must_use]
     pub fn period(mut self, period: Period) -> Self {
         self.period = Some(period);
