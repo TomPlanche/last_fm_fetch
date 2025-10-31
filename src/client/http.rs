@@ -116,9 +116,10 @@ impl HttpClient for ReqwestClient {
                 });
             }
 
-            return Err(LastFmError::Other(format!(
-                "HTTP {status} with non-JSON body"
-            )));
+            return Err(LastFmError::Http {
+                status: status.as_u16(),
+                source: None,
+            });
         }
 
         match serde_json::from_str::<serde_json::Value>(&body_text) {
@@ -187,19 +188,17 @@ impl Default for MockClient {
 impl HttpClient for MockClient {
     async fn get(&self, url: &str) -> Result<serde_json::Value> {
         // Extract method from URL query parameters
-        let url_obj = url::Url::parse(url)
-            .map_err(|e| LastFmError::Other(format!("Invalid URL in mock client: {e}")))?;
+        let url_obj = url::Url::parse(url)?;
 
         let method = url_obj
             .query_pairs()
             .find(|(key, _)| key == "method")
             .map(|(_, value)| value.to_string())
-            .ok_or_else(|| LastFmError::Other("No method parameter in mock URL".to_string()))?;
+            .ok_or_else(|| LastFmError::Config("No method parameter in mock URL".to_string()))?;
 
-        let json =
-            self.responses.get(&method).cloned().ok_or_else(|| {
-                LastFmError::Other(format!("No mock response for method: {method}"))
-            })?;
+        let json = self.responses.get(&method).cloned().ok_or_else(|| {
+            LastFmError::Config(format!("No mock response for method: {method}"))
+        })?;
 
         // Check if the JSON contains an error field (Last.fm returns errors with HTTP 200)
         if json.get("error").is_some()
@@ -267,7 +266,7 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), LastFmError::Other(_)));
+        assert!(matches!(result.unwrap_err(), LastFmError::Config(_)));
     }
 
     #[tokio::test]
