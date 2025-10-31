@@ -258,12 +258,7 @@ mod tests {
             "api request failed"
         );
         assert_eq!(
-            format!(
-                "{}",
-                LastFmError::RateLimited {
-                    retry_after: None
-                }
-            ),
+            format!("{}", LastFmError::RateLimited { retry_after: None }),
             "rate limit exceeded"
         );
         assert_eq!(

@@ -196,9 +196,10 @@ impl HttpClient for MockClient {
             .map(|(_, value)| value.to_string())
             .ok_or_else(|| LastFmError::Config("No method parameter in mock URL".to_string()))?;
 
-        let json = self.responses.get(&method).cloned().ok_or_else(|| {
-            LastFmError::Config(format!("No mock response for method: {method}"))
-        })?;
+        let json =
+            self.responses.get(&method).cloned().ok_or_else(|| {
+                LastFmError::Config(format!("No mock response for method: {method}"))
+            })?;
 
         // Check if the JSON contains an error field (Last.fm returns errors with HTTP 200)
         if json.get("error").is_some()
