@@ -192,14 +192,15 @@ impl AnalysisHandler {
     ///
     /// # Errors
     /// * `std::io::Error` - If the file cannot be opened or read
-    /// * `serde_json::Error` - If the JSON cannot be deserialized
+    /// * `LastFmError::Io` - If the file cannot be opened
+    /// * `LastFmError::Parse` - If the JSON cannot be deserialized
     ///
     /// # Returns
     /// * `Option<i64>` - Most recent timestamp
     #[allow(dead_code)]
     pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(
         file_path: &Path,
-    ) -> Result<Option<i64>, Box<dyn std::error::Error>> {
+    ) -> crate::error::Result<Option<i64>> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
         let tracks: Vec<T> = serde_json::from_reader(reader)?;

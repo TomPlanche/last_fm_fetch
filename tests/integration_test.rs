@@ -320,10 +320,10 @@ async fn test_error_handling_missing_method() {
 
     // Verify error type
     match result {
-        Err(lastfm_client::LastFmError::Other(msg)) => {
+        Err(lastfm_client::LastFmError::Config(msg)) => {
             assert!(msg.contains("No mock response"));
         }
-        Err(e) => panic!("Expected Other error, got: {e:?}"),
+        Err(e) => panic!("Expected Config error, got: {e:?}"),
         Ok(_) => panic!("Expected error, got success"),
     }
 }

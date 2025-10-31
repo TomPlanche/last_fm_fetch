@@ -740,7 +740,7 @@ impl LastFMHandler {
 
         let file_path_str = file_path
             .to_str()
-            .ok_or_else(|| LastFmError::Other("Invalid file path (non-UTF8)".to_string()))?;
+            .ok_or_else(|| LastFmError::Config("Invalid file path (non-UTF8)".to_string()))?;
 
         // Append the new tracks to the file
         let updated_file = FileHandler::append(&recent_tracks, file_path_str)?;
