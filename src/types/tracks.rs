@@ -54,24 +54,24 @@ where
 
 // BASE TYPES =================================================================
 
-/// Basic type containing MusicBrainz ID and text content
+/// Basic type containing `MusicBrainz` ID and text content
 ///
 /// Used for artist and album information in track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseMbidText {
-    /// MusicBrainz Identifier (may be empty string if not available)
+    /// `MusicBrainz` Identifier (may be empty string if not available)
     pub mbid: String,
     /// Text content (artist name, album name, etc.)
     #[serde(rename = "#text")]
     pub text: String,
 }
 
-/// Extended object type with MusicBrainz ID, URL, and name
+/// Extended object type with `MusicBrainz` ID, URL, and name
 ///
 /// Used for artist and album information in extended track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseObject {
-    /// MusicBrainz Identifier (may be empty string if not available)
+    /// `MusicBrainz` Identifier (may be empty string if not available)
     pub mbid: String,
     /// Last.fm URL for this object
     #[serde(default)]
@@ -106,7 +106,7 @@ pub struct Streamable {
 pub struct Artist {
     /// Artist name
     pub name: String,
-    /// MusicBrainz Identifier (may be empty string if not available)
+    /// `MusicBrainz` Identifier (may be empty string if not available)
     pub mbid: String,
     /// Last.fm URL for this artist
     #[serde(default)]
@@ -169,7 +169,7 @@ pub struct RecentTrack {
     pub date: Option<Date>,
     /// Track name
     pub name: String,
-    /// MusicBrainz track identifier (may be empty string)
+    /// `MusicBrainz` track identifier (may be empty string)
     pub mbid: String,
     /// Last.fm URL for this track
     pub url: String,
@@ -189,14 +189,14 @@ pub struct RecentTrackExtended {
     pub image: Vec<TrackImage>,
     /// Extended album information (includes URL)
     pub album: BaseObject,
-    /// Additional attributes (format varies, use HashMap)
+    /// Additional attributes (format varies, use `HashMap`)
     #[serde(rename = "@attr")]
     pub attr: Option<HashMap<String, String>>,
     /// When the track was played (None if currently playing)
     pub date: Option<Date>,
     /// Track name
     pub name: String,
-    /// MusicBrainz track identifier (may be empty string)
+    /// `MusicBrainz` track identifier (may be empty string)
     pub mbid: String,
     /// Last.fm URL for this track
     #[serde(default)]
@@ -220,7 +220,7 @@ pub struct LovedTrack {
     pub streamable: Streamable,
     /// Track name
     pub name: String,
-    /// MusicBrainz track identifier (may be empty string)
+    /// `MusicBrainz` track identifier (may be empty string)
     pub mbid: String,
     /// Last.fm URL for this track
     pub url: String,
@@ -235,7 +235,7 @@ pub struct LovedTrack {
 pub struct TopTrack {
     /// Streamability information
     pub streamable: Streamable,
-    /// MusicBrainz track identifier (may be empty string)
+    /// `MusicBrainz` track identifier (may be empty string)
     pub mbid: String,
     /// Track name
     pub name: String,

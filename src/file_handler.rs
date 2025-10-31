@@ -33,7 +33,7 @@ impl FileHandler {
     /// * `serde_json::Error` - If the JSON cannot be serialized
     ///
     /// # Returns
-    /// * `Result<String>` - Full path to the saved file (e.g., "data/recent_tracks_20240101_120000.json")
+    /// * `Result<String>` - Full path to the saved file (e.g., `data/recent_tracks_20240101_120000.json`)
     pub fn save<T: Serialize>(
         data: &[T],
         format: &FileFormat,

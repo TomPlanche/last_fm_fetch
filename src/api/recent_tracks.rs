@@ -58,7 +58,7 @@ impl RecentTracksRequestBuilder {
     ///
     /// # Arguments
     /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
-    ///             If you need all tracks, use `unlimited()` instead.
+    ///   If you need all tracks, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -223,8 +223,8 @@ impl RecentTracksRequestBuilder {
     ///
     /// # Arguments
     /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
-    ///                 counted separately in `tracks_below_threshold`. For example, use 5 to identify
-    ///                 tracks played less than 5 times.
+    ///   counted separately in `tracks_below_threshold`. For example, use 5 to identify
+    ///   tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
@@ -240,7 +240,7 @@ impl RecentTracksRequestBuilder {
     ///
     /// # Arguments
     /// * `threshold` - Minimum play count threshold. Tracks with fewer plays than this value will be
-    ///                 counted separately. For example, use 5 to identify tracks played less than 5 times.
+    ///   counted separately. For example, use 5 to identify tracks played less than 5 times.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
