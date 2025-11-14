@@ -44,7 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.user_exists(username_to_check).await {
         Ok(true) => {
             println!("User '{username_to_check}' exists! Fetching recent tracks...");
-            match client.recent_tracks(username_to_check).limit(5).fetch().await {
+            match client
+                .recent_tracks(username_to_check)
+                .limit(5)
+                .fetch()
+                .await
+            {
                 Ok(tracks) => {
                     println!("\nFetched {} recent tracks:", tracks.len());
                     for (i, track) in tracks.iter().enumerate() {
