@@ -26,6 +26,7 @@ use std::sync::Arc;
 /// // Use client.recent_tracks() to fetch data
 /// ```
 pub struct LastFmClient {
+    http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     recent_tracks_client: RecentTracksClient,
     loved_tracks_client: LovedTracksClient,
@@ -104,9 +105,10 @@ impl LastFmClient {
         let config = Arc::new(config);
         let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
         let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
-        let top_tracks_client = TopTracksClient::new(http, config.clone());
+        let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
 
         Self {
+            http,
             config,
             recent_tracks_client,
             loved_tracks_client,
@@ -138,9 +140,10 @@ impl LastFmClient {
         let config = Arc::new(config);
         let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
         let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
-        let top_tracks_client = TopTracksClient::new(http, config.clone());
+        let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
 
         Self {
+            http,
             config,
             recent_tracks_client,
             loved_tracks_client,
@@ -208,6 +211,57 @@ impl LastFmClient {
         self.top_tracks_client.builder(username)
     }
 
+    /// Check if a Last.fm user exists
+    ///
+    /// # Arguments
+    /// * `username` - The Last.fm username to check
+    ///
+    /// # Returns
+    /// * `Ok(true)` - User exists
+    /// * `Ok(false)` - User does not exist
+    /// * `Err` - Network error or other API error
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// if client.user_exists("rj").await? {
+    ///     println!("User exists!");
+    /// } else {
+    ///     println!("User not found");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    /// Returns an error if the request fails due to network issues or other API errors
+    /// (not including "user not found" which returns `Ok(false)`)
+    pub async fn user_exists(&self, username: impl Into<String>) -> Result<bool> {
+        use crate::api::constants::BASE_URL;
+        use crate::error::LastFmError;
+        use crate::url_builder::{QueryParams, Url};
+
+        let username = username.into();
+        let mut params = QueryParams::new();
+        params.insert("method".to_string(), "user.getinfo".to_string());
+        params.insert("user".to_string(), username);
+        params.insert("api_key".to_string(), self.config.api_key().to_string());
+        params.insert("format".to_string(), "json".to_string());
+
+        let url = Url::new(BASE_URL).add_args(params).build();
+
+        match self.http.get(&url).await {
+            Ok(_) => Ok(true),
+            Err(LastFmError::Api { error_code, .. }) if error_code == 6 || error_code == 7 => {
+                // Error code 6: Invalid parameters (user not found)
+                // Error code 7: Invalid resource specified (user not found)
+                Ok(false)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// Get a reference to the configuration
     #[must_use]
     pub fn config(&self) -> &Config {
@@ -246,7 +300,8 @@ mod tests {
         let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
 
         let mock = MockClient::new();
-        let client = LastFmClient::with_http(config, Arc::new(mock));
+        let http = Arc::new(mock);
+        let client = LastFmClient::with_http(config, http);
         assert_eq!(client.config().api_key(), "test_key");
     }
 
@@ -259,5 +314,97 @@ mod tests {
             .unwrap();
 
         assert_eq!(client.config().api_key(), "test_key");
+    }
+
+    #[tokio::test]
+    async fn test_user_exists_returns_true() {
+        use serde_json::json;
+
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
+
+        let mock = MockClient::new().with_response(
+            "user.getinfo",
+            json!({
+                "user": {
+                    "name": "rj",
+                    "realname": "Richard Jones",
+                    "url": "https://www.last.fm/user/rj"
+                }
+            }),
+        );
+
+        let client = LastFmClient::with_http(config, Arc::new(mock));
+        let result = client.user_exists("rj").await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_user_exists_returns_false_for_error_6() {
+        use serde_json::json;
+
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
+
+        // Mock returns error code 6 (Invalid parameters / user not found)
+        let mock = MockClient::new().with_response(
+            "user.getinfo",
+            json!({
+                "error": 6,
+                "message": "User not found"
+            }),
+        );
+
+        let client = LastFmClient::with_http(config, Arc::new(mock));
+        let result = client.user_exists("nonexistentuser").await;
+
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_user_exists_returns_false_for_error_7() {
+        use serde_json::json;
+
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
+
+        // Mock returns error code 7 (Invalid resource specified)
+        let mock = MockClient::new().with_response(
+            "user.getinfo",
+            json!({
+                "error": 7,
+                "message": "Invalid resource specified"
+            }),
+        );
+
+        let client = LastFmClient::with_http(config, Arc::new(mock));
+        let result = client.user_exists("invaliduser").await;
+
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_user_exists_propagates_other_api_errors() {
+        use crate::error::LastFmError;
+        use serde_json::json;
+
+        let config = ConfigBuilder::new().api_key("test_key").build().unwrap();
+
+        // Mock returns error code 10 (Invalid API key)
+        let mock = MockClient::new().with_response(
+            "user.getinfo",
+            json!({
+                "error": 10,
+                "message": "Invalid API key"
+            }),
+        );
+
+        let client = LastFmClient::with_http(config, Arc::new(mock));
+        let result = client.user_exists("someuser").await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, LastFmError::Api { error_code: 10, .. }));
     }
 }
