@@ -4,7 +4,7 @@ version = "2.1.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
-repository = "https://github.com/tom_planche/lastfm-client"
+repository = "https://github.com/TomPlanche/lastfm-client"
 keywords = ["lastfm", "api", "async", "music", "scrobble"]
 categories = ["api-bindings", "web-programming"]
 
