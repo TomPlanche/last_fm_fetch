@@ -11,7 +11,7 @@ use crate::url_builder::QueryParams;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{TrackContainer, fetch_tracks};
+use super::fetch_utils::{ResourceContainer, fetch};
 
 /// Client for fetching recent tracks
 pub struct RecentTracksClient {
@@ -294,9 +294,9 @@ impl RecentTracksRequestBuilder {
         additional_params: QueryParams,
     ) -> Result<Vec<RecentTrack>>
     where
-        T: DeserializeOwned + TrackContainer<TrackType = RecentTrack>,
+        T: DeserializeOwned + ResourceContainer<ItemType = RecentTrack>,
     {
-        fetch_tracks::<RecentTrack, T>(
+        fetch::<RecentTrack, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
@@ -313,9 +313,9 @@ impl RecentTracksRequestBuilder {
         additional_params: QueryParams,
     ) -> Result<Vec<RecentTrackExtended>>
     where
-        T: DeserializeOwned + TrackContainer<TrackType = RecentTrackExtended>,
+        T: DeserializeOwned + ResourceContainer<ItemType = RecentTrackExtended>,
     {
-        fetch_tracks::<RecentTrackExtended, T>(
+        fetch::<RecentTrackExtended, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
@@ -327,26 +327,26 @@ impl RecentTracksRequestBuilder {
     }
 }
 
-impl TrackContainer for UserRecentTracks {
-    type TrackType = RecentTrack;
+impl ResourceContainer for UserRecentTracks {
+    type ItemType = RecentTrack;
 
-    fn total_tracks(&self) -> u32 {
+    fn total(&self) -> u32 {
         self.recenttracks.attr.total
     }
 
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn items(self) -> Vec<Self::ItemType> {
         self.recenttracks.track
     }
 }
 
-impl TrackContainer for UserRecentTracksExtended {
-    type TrackType = RecentTrackExtended;
+impl ResourceContainer for UserRecentTracksExtended {
+    type ItemType = RecentTrackExtended;
 
-    fn total_tracks(&self) -> u32 {
+    fn total(&self) -> u32 {
         self.recenttracks.attr.total
     }
 
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn items(self) -> Vec<Self::ItemType> {
         self.recenttracks.track
     }
 }
