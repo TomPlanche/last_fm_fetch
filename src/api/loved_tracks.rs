@@ -8,7 +8,7 @@ use crate::types::{LovedTrack, TrackLimit, UserLovedTracks};
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{TrackContainer, fetch_tracks};
+use super::fetch_utils::{ResourceContainer, fetch};
 
 /// Client for fetching loved tracks
 pub struct LovedTracksClient {
@@ -127,11 +127,11 @@ impl LovedTracksRequestBuilder {
 
     async fn fetch_tracks<T>(&self, limit: TrackLimit) -> Result<Vec<LovedTrack>>
     where
-        T: DeserializeOwned + TrackContainer<TrackType = LovedTrack>,
+        T: DeserializeOwned + ResourceContainer<ItemType = LovedTrack>,
     {
         use crate::url_builder::QueryParams;
 
-        fetch_tracks::<LovedTrack, T>(
+        fetch::<LovedTrack, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
@@ -143,14 +143,14 @@ impl LovedTracksRequestBuilder {
     }
 }
 
-impl TrackContainer for UserLovedTracks {
-    type TrackType = LovedTrack;
+impl ResourceContainer for UserLovedTracks {
+    type ItemType = LovedTrack;
 
-    fn total_tracks(&self) -> u32 {
+    fn total(&self) -> u32 {
         self.lovedtracks.attr.total
     }
 
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn items(self) -> Vec<Self::ItemType> {
         self.lovedtracks.track
     }
 }

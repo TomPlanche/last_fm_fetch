@@ -10,16 +10,49 @@ use std::sync::Arc;
 
 use super::constants::{API_MAX_LIMIT, BASE_URL, CHUNK_MULTIPLIER, CHUNK_SIZE};
 
-/// Trait for containers that hold track data
-pub trait TrackContainer {
-    type TrackType;
-
-    fn total_tracks(&self) -> u32;
-    fn tracks(self) -> Vec<Self::TrackType>;
+/// Period options for Last.fm time range filters
+///
+/// These periods define the time range for calculating top tracks.
+#[derive(Debug, Clone, Copy)]
+pub enum Period {
+    /// All-time top tracks (no time limit)
+    Overall,
+    /// Top tracks from the last 7 days
+    Week,
+    /// Top tracks from the last month (30 days)
+    Month,
+    /// Top tracks from the last 3 months (90 days)
+    ThreeMonth,
+    /// Top tracks from the last 6 months (180 days)
+    SixMonth,
+    /// Top tracks from the last 12 months (365 days)
+    TwelveMonth,
 }
 
-/// Generic function to fetch tracks with pagination
-pub async fn fetch_tracks<T, R>(
+impl Period {
+    #[must_use]
+    pub fn as_api_str(self) -> &'static str {
+        match self {
+            Period::Overall => "overall",
+            Period::Week => "7day",
+            Period::Month => "1month",
+            Period::ThreeMonth => "3month",
+            Period::SixMonth => "6month",
+            Period::TwelveMonth => "12month",
+        }
+    }
+}
+
+/// Trait for containers that hold Last.fm resources (tracks, artists, etc.)
+pub trait ResourceContainer {
+    type ItemType;
+
+    fn total(&self) -> u32;
+    fn items(self) -> Vec<Self::ItemType>;
+}
+
+/// Generic function to fetch things with pagination
+pub async fn fetch<T, R>(
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,
@@ -28,7 +61,7 @@ pub async fn fetch_tracks<T, R>(
     additional_params: QueryParams,
 ) -> Result<Vec<T>>
 where
-    R: DeserializeOwned + TrackContainer<TrackType = T>,
+    R: DeserializeOwned + ResourceContainer<ItemType = T>,
 {
     let mut base_params = QueryParams::new();
     base_params.insert("api_key".to_string(), config.api_key().to_string());
@@ -43,7 +76,7 @@ where
     initial_params.insert("page".to_string(), "1".to_string());
 
     let initial_response: R = fetch_json(&http, &initial_params).await?;
-    let total_tracks = initial_response.total_tracks();
+    let total_tracks = initial_response.total();
 
     let final_limit = match limit {
         TrackLimit::Limited(l) => l.min(total_tracks),
@@ -62,7 +95,7 @@ where
 
         let response: R = fetch_json(&http, &single_params).await?;
         return Ok(response
-            .tracks()
+            .items()
             .into_iter()
             .take(final_limit as usize)
             .collect());
@@ -102,7 +135,7 @@ where
                     let response: R = fetch_json(&http, &call_params).await?;
                     Ok::<Vec<T>, crate::error::LastFmError>(
                         response
-                            .tracks()
+                            .items()
                             .into_iter()
                             .take(call_limit as usize)
                             .collect(),

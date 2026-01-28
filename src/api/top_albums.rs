@@ -2,7 +2,7 @@ use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{TopTrack, TrackLimit, UserTopTracks};
+use crate::types::{TopAlbum, TrackLimit, UserTopAlbums};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
@@ -10,25 +10,25 @@ use std::sync::Arc;
 
 use super::fetch_utils::{Period, ResourceContainer, fetch};
 
-/// Client for fetching top tracks
-pub struct TopTracksClient {
+/// Client for fetching top albums
+pub struct TopAlbumsClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
 }
 
-impl TopTracksClient {
+impl TopAlbumsClient {
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }
 
-    /// Create a builder for top tracks requests
-    pub fn builder(&self, username: impl Into<String>) -> TopTracksRequestBuilder {
-        TopTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    /// Create a builder for top albums requests
+    pub fn builder(&self, username: impl Into<String>) -> TopAlbumsRequestBuilder {
+        TopAlbumsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 }
 
-/// Builder for top tracks requests
-pub struct TopTracksRequestBuilder {
+/// Builder for top albums requests
+pub struct TopAlbumsRequestBuilder {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,
@@ -36,7 +36,7 @@ pub struct TopTracksRequestBuilder {
     period: Option<Period>,
 }
 
-impl TopTracksRequestBuilder {
+impl TopAlbumsRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
@@ -47,52 +47,41 @@ impl TopTracksRequestBuilder {
         }
     }
 
-    /// Set the maximum number of tracks to fetch
+    /// Set the maximum number of albums to fetch
     ///
     /// # Arguments
-    /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
-    ///   If you need all tracks, use `unlimited()` instead.
+    /// * `limit` - Maximum number of albums to fetch. The Last.fm API supports fetching up to thousands of albums.
+    ///   If you need all albums, use `unlimited()` instead.
     #[must_use]
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
-    /// Fetch all available tracks (no limit)
+    /// Fetch all available albums (no limit)
     #[must_use]
     pub fn unlimited(mut self) -> Self {
         self.limit = None;
         self
     }
 
-    /// Set the time period for top tracks
+    /// Set the time period for top albums
     ///
     /// # Arguments
-    /// * `period` - The time range to calculate top tracks over. Use `Period::Overall` for all-time,
+    /// * `period` - The time range to calculate top albums over. Use `Period::Overall` for all-time,
     ///   `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
     ///   If not set, defaults to the Last.fm API's default behavior (typically overall).
-    ///
-    /// # Example
-    /// ```ignore
-    /// use lastfm_client::api::Period;
-    ///
-    /// let tracks = client.top_tracks("username")
-    ///     .period(Period::Month)
-    ///     .limit(50)
-    ///     .fetch()
-    ///     .await?;
-    /// ```
     #[must_use]
     pub fn period(mut self, period: Period) -> Self {
         self.period = Some(period);
         self
     }
 
-    /// Fetch the tracks
+    /// Fetch the albums
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn fetch(self) -> Result<Vec<TopTrack>> {
+    pub async fn fetch(self) -> Result<Vec<TopAlbum>> {
         let mut params = QueryParams::new();
 
         if let Some(period) = self.period {
@@ -103,13 +92,13 @@ impl TopTracksRequestBuilder {
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_tracks::<UserTopTracks>(limit, params).await
+        self.fetch_albums::<UserTopAlbums>(limit, params).await
     }
 
-    /// Fetch tracks and save them to a file
+    /// Fetch albums and save them to a file
     ///
     /// # Arguments
-    /// * `format` - The file format to save the tracks in
+    /// * `format` - The file format to save the albums in
     /// * `filename_prefix` - Prefix for the generated filename
     ///
     /// # Errors
@@ -118,26 +107,26 @@ impl TopTracksRequestBuilder {
     /// # Returns
     /// * `Result<String>` - The filename of the saved file
     pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
-        let tracks = self.fetch().await?;
-        tracing::info!("Saving {} top tracks to file", tracks.len());
-        let filename = FileHandler::save(&tracks, &format, filename_prefix)
+        let albums = self.fetch().await?;
+        tracing::info!("Saving {} top albums to file", albums.len());
+        let filename = FileHandler::save(&albums, &format, filename_prefix)
             .map_err(crate::error::LastFmError::Io)?;
         Ok(filename)
     }
 
-    async fn fetch_tracks<T>(
+    async fn fetch_albums<T>(
         &self,
         limit: TrackLimit,
         additional_params: QueryParams,
-    ) -> Result<Vec<TopTrack>>
+    ) -> Result<Vec<TopAlbum>>
     where
-        T: DeserializeOwned + ResourceContainer<ItemType = TopTrack>,
+        T: DeserializeOwned + ResourceContainer<ItemType = TopAlbum>,
     {
-        fetch::<TopTrack, T>(
+        fetch::<TopAlbum, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
-            "user.gettoptracks",
+            "user.gettopalbums",
             limit,
             additional_params,
         )
@@ -145,14 +134,14 @@ impl TopTracksRequestBuilder {
     }
 }
 
-impl ResourceContainer for UserTopTracks {
-    type ItemType = TopTrack;
+impl ResourceContainer for UserTopAlbums {
+    type ItemType = TopAlbum;
 
     fn total(&self) -> u32 {
-        self.toptracks.attr.total
+        self.topalbums.attr.total
     }
 
     fn items(self) -> Vec<Self::ItemType> {
-        self.toptracks.track
+        self.topalbums.album
     }
 }

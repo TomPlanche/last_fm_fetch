@@ -1,4 +1,6 @@
-use crate::api::{LovedTracksClient, RecentTracksClient, TopTracksClient};
+use crate::api::{
+    LovedTracksClient, RecentTracksClient, TopAlbumsClient, TopArtistsClient, TopTracksClient,
+};
 use crate::client::{
     HttpClient, RateLimitedClient, RateLimiter, ReqwestClient, RetryClient, RetryPolicy,
 };
@@ -31,6 +33,8 @@ pub struct LastFmClient {
     recent_tracks_client: RecentTracksClient,
     loved_tracks_client: LovedTracksClient,
     top_tracks_client: TopTracksClient,
+    top_artists_client: TopArtistsClient,
+    top_albums_client: TopAlbumsClient,
 }
 
 impl LastFmClient {
@@ -106,6 +110,8 @@ impl LastFmClient {
         let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
         let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
         let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
+        let top_artists_client = TopArtistsClient::new(http.clone(), config.clone());
+        let top_albums_client = TopAlbumsClient::new(http.clone(), config.clone());
 
         Self {
             http,
@@ -113,6 +119,8 @@ impl LastFmClient {
             recent_tracks_client,
             loved_tracks_client,
             top_tracks_client,
+            top_artists_client,
+            top_albums_client,
         }
     }
 
@@ -141,6 +149,8 @@ impl LastFmClient {
         let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
         let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
         let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
+        let top_artists_client = TopArtistsClient::new(http.clone(), config.clone());
+        let top_albums_client = TopAlbumsClient::new(http.clone(), config.clone());
 
         Self {
             http,
@@ -148,6 +158,8 @@ impl LastFmClient {
             recent_tracks_client,
             loved_tracks_client,
             top_tracks_client,
+            top_artists_client,
+            top_albums_client,
         }
     }
 
@@ -209,6 +221,42 @@ impl LastFmClient {
     /// ```
     pub fn top_tracks(&self, username: impl Into<String>) -> crate::api::TopTracksRequestBuilder {
         self.top_tracks_client.builder(username)
+    }
+
+    /// Get a builder for top artists requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let artists = client
+    ///     .top_artists("username")
+    ///     .limit(100)
+    ///     .fetch()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn top_artists(&self, username: impl Into<String>) -> crate::api::TopArtistsRequestBuilder {
+        self.top_artists_client.builder(username)
+    }
+
+    /// Get a builder for top albums requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let albums = client
+    ///     .top_albums("username")
+    ///     .limit(100)
+    ///     .fetch()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn top_albums(&self, username: impl Into<String>) -> crate::api::TopAlbumsRequestBuilder {
+        self.top_albums_client.builder(username)
     }
 
     /// Check if a Last.fm user exists

@@ -5,8 +5,8 @@ use crate::config;
 use crate::error::{LastFmError, LastFmErrorResponse, Result};
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    LovedTrack, RecentTrack, RecentTrackExtended, Timestamped, TopTrack, UserLovedTracks,
-    UserRecentTracks, UserRecentTracksExtended, UserTopTracks,
+    LovedTrack, RecentTrack, RecentTrackExtended, Timestamped, TopArtist, TopTrack,
+    UserLovedTracks, UserRecentTracks, UserRecentTracksExtended, UserTopArtists, UserTopTracks,
 };
 use crate::url_builder::{QueryParams, Url};
 
@@ -32,54 +32,65 @@ impl From<Option<u32>> for TrackLimit {
     }
 }
 
-trait TrackContainer {
-    type TrackType;
+trait ResourceContainer {
+    type ResourceType;
 
-    fn total_tracks(&self) -> u32;
-    fn tracks(self) -> Vec<Self::TrackType>;
+    fn total_resources(&self) -> u32;
+    fn resources(self) -> Vec<Self::ResourceType>;
 }
 
-impl TrackContainer for UserLovedTracks {
-    type TrackType = LovedTrack;
+impl ResourceContainer for UserLovedTracks {
+    type ResourceType = LovedTrack;
 
-    fn total_tracks(&self) -> u32 {
+    fn total_resources(&self) -> u32 {
         self.lovedtracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn resources(self) -> Vec<Self::ResourceType> {
         self.lovedtracks.track
     }
 }
 
-impl TrackContainer for UserRecentTracks {
-    type TrackType = RecentTrack;
+impl ResourceContainer for UserRecentTracks {
+    type ResourceType = RecentTrack;
 
-    fn total_tracks(&self) -> u32 {
+    fn total_resources(&self) -> u32 {
         self.recenttracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn resources(self) -> Vec<Self::ResourceType> {
         self.recenttracks.track
     }
 }
 
-impl TrackContainer for UserRecentTracksExtended {
-    type TrackType = RecentTrackExtended;
+impl ResourceContainer for UserRecentTracksExtended {
+    type ResourceType = RecentTrackExtended;
 
-    fn total_tracks(&self) -> u32 {
+    fn total_resources(&self) -> u32 {
         self.recenttracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn resources(self) -> Vec<Self::ResourceType> {
         self.recenttracks.track
     }
 }
 
-impl TrackContainer for UserTopTracks {
-    type TrackType = TopTrack;
+impl ResourceContainer for UserTopTracks {
+    type ResourceType = TopTrack;
 
-    fn total_tracks(&self) -> u32 {
+    fn total_resources(&self) -> u32 {
         self.toptracks.attr.total
     }
-    fn tracks(self) -> Vec<Self::TrackType> {
+    fn resources(self) -> Vec<Self::ResourceType> {
         self.toptracks.track
+    }
+}
+
+impl ResourceContainer for UserTopArtists {
+    type ResourceType = TopArtist;
+
+    fn total_resources(&self) -> u32 {
+        self.topartists.attr.total
+    }
+    fn resources(self) -> Vec<Self::ResourceType> {
+        self.topartists.artist
     }
 }
 
@@ -289,13 +300,13 @@ impl LastFMHandler {
     /// * `limit` - The number of tracks to fetch. If None, fetch all tracks.
     ///
     /// # Returns
-    /// * `Result<Vec<T::TrackType>, Error>` - The fetched tracks.
-    async fn get_user_tracks<T: DeserializeOwned + TrackContainer>(
+    /// * `Result<Vec<T::ResourceType>, Error>` - The fetched tracks.
+    async fn get_user_tracks<T: DeserializeOwned + ResourceContainer>(
         &self,
         method: &str,
         limit: TrackLimit,
         additional_params: Option<QueryParams>,
-    ) -> Result<Vec<T::TrackType>> {
+    ) -> Result<Vec<T::ResourceType>> {
         let mut params = self.base_options.clone();
         if let Some(additional_params) = additional_params {
             params.extend(additional_params);
@@ -308,7 +319,7 @@ impl LastFMHandler {
         base_params.extend(params.clone());
 
         let initial_response: T = self.fetch(method, &base_params).await?;
-        let total_tracks = initial_response.total_tracks();
+        let total_tracks = initial_response.total_resources();
 
         let final_limit = match limit {
             TrackLimit::Limited(l) => l.min(total_tracks),
@@ -326,7 +337,7 @@ impl LastFMHandler {
 
             let response: T = self.fetch(method, &base_params).await?;
             return Ok(response
-                .tracks()
+                .resources()
                 .into_iter()
                 .take(final_limit as usize)
                 .collect());
@@ -366,7 +377,7 @@ impl LastFMHandler {
                         let response: T = self.fetch(method, &call_params).await?;
                         Ok::<_, LastFmError>(
                             response
-                                .tracks()
+                                .resources()
                                 .into_iter()
                                 .take(call_limit as usize)
                                 .collect::<Vec<_>>(),
