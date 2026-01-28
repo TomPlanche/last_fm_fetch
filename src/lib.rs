@@ -33,5 +33,5 @@ pub use api::{
 // Re-export commonly used types
 pub use types::{
     LovedTrack, RecentTrack, RecentTrackExtended, TopTrack, UserLovedTracks, UserRecentTracks,
-    UserRecentTracksExtended, UserTopTracks,
+    UserRecentTracksExtended, UserTopAlbums, UserTopArtists, UserTopTracks,
 };
