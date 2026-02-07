@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-02-07
+
+### Added
+
+- **TopArtistsClient**: Fetch top artists via `client.top_artists("username")` with builder pattern
+- **TopAlbumsClient**: Fetch top albums via `client.top_albums("username")` with builder pattern
+- **TopArtist type**: `TopArtist` struct for `user.gettopartists` responses
+- **TopAlbum type**: `TopAlbum` struct with `artist` field (`BaseObject`) for `user.gettopalbums` responses
+- **Unified `ResourceContainer` trait**: Single trait in `fetch_utils.rs` used across all resource types (`ItemType`, `total()`, `items()`)
+
+### Removed
+
+- **`lastfm_handler` module** (BREAKING): The entire deprecated v1.x API has been removed
+  - `LastFMHandler` struct and all its methods (`get_user_recent_tracks`, `get_user_top_tracks`, etc.)
+  - The duplicate private `ResourceContainer` trait that used different names (`ResourceType`, `total_resources()`, `resources()`)
+  - `TrackLimit` enum from `lastfm_handler` (the one in `types::period` remains)
+- All v1.x deprecation warnings are gone since the deprecated code no longer exists
+
+### Changed
+
+- **`TrackPlayInfo` moved** (BREAKING): From `lastfm_client::lastfm_handler::TrackPlayInfo` to `lastfm_client::types::TrackPlayInfo`
+- Updated `file_handler.rs` to import `TrackPlayInfo` from `crate::types`
+- Updated README: removed all v1.x documentation, added top artists/albums sections, added v2.x -> v3.0 migration table
+- Updated CLAUDE.md: reflects current architecture without legacy references
+
+### Migration from v2.x
+
+| v2.x (removed) | v3.0 equivalent |
+|---|---|
+| `LastFMHandler::new("user")` | `LastFmClient::new()?` |
+| `handler.get_user_recent_tracks(Some(100))` | `client.recent_tracks("user").limit(100).fetch().await?` |
+| `handler.get_user_recent_tracks_between(from, to, false)` | `client.recent_tracks("user").between(from, to).fetch().await?` |
+| `handler.get_user_top_tracks(Some(50), Some(Period::Week))` | `client.top_tracks("user").limit(50).period(Period::Week).fetch().await?` |
+| `handler.get_user_loved_tracks(Some(100))` | `client.loved_tracks("user").limit(100).fetch().await?` |
+| `lastfm_client::lastfm_handler::TrackPlayInfo` | `lastfm_client::types::TrackPlayInfo` |
+
 ## [2.0.0] - 2025-01-XX
 
 ### Added
@@ -29,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Retry Logic
 - **RetryClient**: Automatic retry wrapper for HTTP requests
 - **RetryPolicy**: Configurable retry strategies
-  - Exponential backoff (default): 100ms → 200ms → 400ms → 800ms...
-  - Linear backoff: 1s → 2s → 3s → 4s...
+  - Exponential backoff (default): 100ms -> 200ms -> 400ms -> 800ms...
+  - Linear backoff: 1s -> 2s -> 3s -> 4s...
   - Custom policies with configurable base delay and max delay
 - Respects `is_retryable()` hints from error types
 - Honors server-specified retry delays via `retry_after()`
@@ -69,23 +105,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Period enum**: Type-safe time period representation
 - **TrackLimit enum**: Explicit Limited/Unlimited distinction
 
-#### Documentation
-- Comprehensive examples in `examples/new_api_demo.rs`
-- Advanced features demo in `examples/advanced_features.rs`
-- Updated README with v2.0 API documentation
-- Migration guide for v1.x → v2.0
-- Detailed PHASE2_SUMMARY.md documenting the refactoring process
-
 #### Testing
-- 62 tests (up from 7 in v1.1.0) - 786% increase
+- 62 tests (up from 7 in v1.1.0)
   - 34 unit tests in `src/`
   - 28 integration tests in `tests/integration_test.rs`
   - 13 doc tests
 - Comprehensive integration test suite with mock HTTP responses
 - Tests for retry logic, rate limiting, error handling, date validation
-- Tests for custom deserializers and type conversions
 - Fast execution (< 100ms) using mock strategy
-- See INTEGRATION_TESTS.md for detailed test documentation
 
 ### Changed
 
@@ -101,7 +128,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/client/` - HTTP client implementations
   - `src/api/` - API-specific clients (recent_tracks, etc.)
   - `src/types/` - Type definitions organized by domain
-- Renamed `types.rs` to `legacy_types.rs` (internal, no API change)
 
 #### Dependencies
 - Added `async-trait = "0.1"` - For async trait methods
@@ -113,7 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-Nothing deprecated. The v1.x API remains fully supported.
+- All v1.x API methods via `LastFMHandler` (removed in v3.0.0)
 
 ### Removed
 
@@ -128,12 +154,6 @@ Nothing deprecated. The v1.x API remains fully supported.
 - Inconsistent error handling across different API methods
 - Missing error context in API failures
 - Date range validation prevents invalid API calls with clear error messages
-
-### Security
-
-- Rate limiting prevents accidental API abuse
-- Proper timeout handling prevents hanging requests
-- Structured logging replaces debug print statements
 
 ## [1.1.0] - 2024-XX-XX
 
@@ -161,53 +181,14 @@ Nothing deprecated. The v1.x API remains fully supported.
 
 ---
 
-## Migration Guide
-
-### From v1.x to v2.0
-
-**Good news**: v2.0 is 100% backward compatible! You don't need to change anything.
-
-However, we recommend migrating to the new API for better ergonomics:
-
-#### Before (v1.x)
-```rust
-let handler = LastFMHandler::new("username")?;
-let tracks = handler.get_user_recent_tracks_with_options(
-    Some(50),
-    Some(from),
-    Some(to),
-    true
-).await?;
-```
-
-#### After (v2.0)
-```rust
-let client = LastFmClient::builder().from_env()?.build()?;
-let tracks = client
-    .recent_tracks("username")
-    .limit(50)
-    .between(from, to)
-    .fetch()
-    .await?;
-```
-
-See `MIGRATION.md` for detailed migration instructions.
-
----
-
 ## Versioning Policy
 
 - **Major version** (X.0.0): Breaking API changes
 - **Minor version** (x.X.0): New features, backward compatible
 - **Patch version** (x.x.X): Bug fixes, backward compatible
 
-## Support
-
-- v2.x: Active development, full support
-- v1.x: Maintenance mode, security updates only
-
 ## Links
 
-- [Repository](https://github.com/tom_planche/lastfm-client)
+- [Repository](https://github.com/TomPlanche/lastfm-client)
 - [Documentation](https://docs.rs/lastfm-client)
 - [Last.fm API](https://www.last.fm/api)

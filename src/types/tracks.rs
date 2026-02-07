@@ -280,6 +280,21 @@ pub struct UserTopTracks {
     pub toptracks: TopTracks,
 }
 
+// ANALYTICS ==================================================================
+
+/// Represents a track's play count information
+#[derive(Debug, Serialize)]
+pub struct TrackPlayInfo {
+    pub name: String,
+    pub play_count: u32,
+    pub artist: String,
+    pub album: Option<String>,
+    pub image_url: Option<String>,
+    pub currently_playing: bool,
+    pub date: Option<u32>,
+    pub url: String,
+}
+
 // TRAITS =====================================================================
 
 pub trait Timestamped {
