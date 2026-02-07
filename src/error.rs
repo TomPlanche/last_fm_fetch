@@ -12,7 +12,7 @@ pub struct LastFmErrorResponse {
 pub enum LastFmError {
     /// Represents a Last.fm API error with code and message
     /// Access details via the struct fields: `method`, `message`, `error_code`, `retryable`
-    #[error("api request failed")]
+    #[error("api error (method: {method}, code: {error_code}): {message}")]
     Api {
         method: String,
         message: String,
@@ -22,39 +22,39 @@ pub enum LastFmError {
 
     /// Represents rate limiting error
     /// Access `retry_after` via the struct field
-    #[error("rate limit exceeded")]
+    #[error("rate limit exceeded{}", retry_after.map(|d| format!(" (retry after {}ms)", d.as_millis())).unwrap_or_default())]
     RateLimited { retry_after: Option<Duration> },
 
     /// Represents HTTP/network errors
     /// Access source error via `Error::source()`
-    #[error("network error")]
+    #[error("network error: {0}")]
     Network(#[from] reqwest::Error),
 
     /// Represents JSON parsing errors
     /// Access source error via `Error::source()`
-    #[error("failed to parse response")]
+    #[error("failed to parse response: {0}")]
     Parse(#[from] serde_json::Error),
 
     /// Represents file I/O errors
     /// Access source error via `Error::source()`
-    #[error("file operation failed")]
+    #[error("file operation failed: {0}")]
     Io(#[from] std::io::Error),
 
     /// Represents CSV errors
     /// Access source error via `Error::source()`
-    #[error("csv operation failed")]
+    #[error("csv operation failed: {0}")]
     Csv(#[from] csv::Error),
 
     /// Represents missing environment variable errors
-    #[error("missing required environment variable")]
+    #[error("missing required environment variable: {0}")]
     MissingEnvVar(String),
 
     /// Represents configuration errors
-    #[error("configuration error")]
+    #[error("configuration error: {0}")]
     Config(String),
 
     /// Represents HTTP response errors (non-success status codes)
-    #[error("http error")]
+    #[error("http error (status: {status})")]
     Http {
         status: u16,
         #[source]
@@ -62,7 +62,7 @@ pub enum LastFmError {
     },
 
     /// Represents URL parsing errors
-    #[error("invalid url")]
+    #[error("invalid url: {source}")]
     Url {
         #[source]
         source: url::ParseError,
@@ -195,7 +195,10 @@ mod tests {
     fn test_error_display() {
         let error = LastFmError::MissingEnvVar("LAST_FM_API_KEY".to_string());
         let display = format!("{error}");
-        assert_eq!(display, "missing required environment variable");
+        assert_eq!(
+            display,
+            "missing required environment variable: LAST_FM_API_KEY"
+        );
     }
 
     #[test]
@@ -239,35 +242,43 @@ mod tests {
             source: None,
         };
         assert_eq!(error.http_status(), Some(404));
-        assert_eq!(format!("{error}"), "http error");
+        assert_eq!(format!("{error}"), "http error (status: 404)");
     }
 
     #[test]
     fn test_display_messages_format() {
-        // All Display messages should be lowercase and concise
         assert_eq!(
             format!(
                 "{}",
                 LastFmError::Api {
-                    method: "test".to_string(),
-                    message: "msg".to_string(),
-                    error_code: 1,
+                    method: "user.getrecenttracks".to_string(),
+                    message: "Invalid API key".to_string(),
+                    error_code: 10,
                     retryable: false
                 }
             ),
-            "api request failed"
+            "api error (method: user.getrecenttracks, code: 10): Invalid API key"
         );
         assert_eq!(
             format!("{}", LastFmError::RateLimited { retry_after: None }),
             "rate limit exceeded"
         );
         assert_eq!(
-            format!("{}", LastFmError::MissingEnvVar("TEST".to_string())),
-            "missing required environment variable"
+            format!(
+                "{}",
+                LastFmError::RateLimited {
+                    retry_after: Some(Duration::from_secs(5))
+                }
+            ),
+            "rate limit exceeded (retry after 5000ms)"
         );
         assert_eq!(
-            format!("{}", LastFmError::Config("test".to_string())),
-            "configuration error"
+            format!("{}", LastFmError::MissingEnvVar("TEST".to_string())),
+            "missing required environment variable: TEST"
+        );
+        assert_eq!(
+            format!("{}", LastFmError::Config("bad value".to_string())),
+            "configuration error: bad value"
         );
     }
 }
