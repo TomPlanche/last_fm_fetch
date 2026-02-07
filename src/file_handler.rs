@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Result, prelude::*};
 
-use crate::lastfm_handler::TrackPlayInfo;
+use crate::types::TrackPlayInfo;
 
 /// File format options for saving track data
 #[allow(dead_code)]

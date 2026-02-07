@@ -12,9 +12,6 @@ pub mod analytics;
 #[path = "file_handler.rs"]
 pub mod file_handler;
 
-#[path = "lastfm_handler.rs"]
-pub mod lastfm_handler;
-
 #[path = "url_builder.rs"]
 pub mod url_builder;
 
