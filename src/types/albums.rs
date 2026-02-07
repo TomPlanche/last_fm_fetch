@@ -1,4 +1,4 @@
-use crate::types::{BaseResponse, RankAttr, TrackImage};
+use crate::types::{BaseObject, BaseResponse, RankAttr, TrackImage};
 use serde::{Deserialize, Serialize};
 
 use crate::types::utils::u32_from_str;
@@ -10,6 +10,8 @@ use crate::types::utils::u32_from_str;
 pub struct TopAlbum {
     /// Album name
     pub name: String,
+    /// Artist information
+    pub artist: BaseObject,
     /// `MusicBrainz` album identifier (may be empty string)
     pub mbid: String,
     /// Last.fm URL for this album
