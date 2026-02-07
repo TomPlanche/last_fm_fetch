@@ -1,5 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
 
 use crate::types::utils::{bool_from_str, u32_from_str};
 
@@ -126,6 +128,26 @@ pub struct RecentTrack {
     pub url: String,
 }
 
+impl fmt::Display for RecentTrack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let status = if self.attr.is_some() {
+            " [NOW PLAYING]"
+        } else {
+            ""
+        };
+        let date_str = self
+            .date
+            .as_ref()
+            .map_or(String::new(), |d| format!(" ({})", d.text));
+
+        write!(
+            f,
+            "{} - {} [{}]{date_str}{status}",
+            self.name, self.artist.text, self.album.text
+        )
+    }
+}
+
 /// A track from recent listening history with extended artist/album information
 ///
 /// Retrieved when using the `extended=1` parameter with `user.getrecenttracks`
@@ -154,6 +176,27 @@ pub struct RecentTrackExtended {
     pub url: String,
 }
 
+impl fmt::Display for RecentTrackExtended {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let is_now_playing = self
+            .attr
+            .as_ref()
+            .and_then(|a| a.get("nowplaying"))
+            .is_some_and(|v| v == "true");
+        let status = if is_now_playing { " [NOW PLAYING]" } else { "" };
+        let date_str = self
+            .date
+            .as_ref()
+            .map_or(String::new(), |d| format!(" ({})", d.text));
+
+        write!(
+            f,
+            "{} - {} [{}]{date_str}{status}",
+            self.name, self.artist.name, self.album.name
+        )
+    }
+}
+
 // LOVED TRACK ================================================================
 
 /// A track that a user has marked as "loved" on Last.fm
@@ -175,6 +218,16 @@ pub struct LovedTrack {
     pub mbid: String,
     /// Last.fm URL for this track
     pub url: String,
+}
+
+impl fmt::Display for LovedTrack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} - {} (loved {})",
+            self.name, self.artist.name, self.date.text
+        )
+    }
 }
 
 // TOP TRACK ==================================================================
@@ -205,6 +258,16 @@ pub struct TopTrack {
     /// Total number of times this track has been played
     #[serde(deserialize_with = "u32_from_str")]
     pub playcount: u32,
+}
+
+impl fmt::Display for TopTrack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "#{} - {} by {} ({} plays)",
+            self.attr.rank, self.name, self.artist.name, self.playcount
+        )
+    }
 }
 
 // RESPONSE WRAPPERS ==========================================================

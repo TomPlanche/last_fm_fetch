@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::types::{BaseResponse, RankAttr, TrackImage};
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +27,16 @@ pub struct TopArtist {
     /// Rank attributes (position in top artists)
     #[serde(rename = "@attr")]
     pub attr: RankAttr,
+}
+
+impl fmt::Display for TopArtist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "#{} - {} ({} plays)",
+            self.attr.rank, self.name, self.playcount
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
