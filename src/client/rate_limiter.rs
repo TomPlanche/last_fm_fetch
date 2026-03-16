@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
 
 /// Rate limiter using sliding window algorithm
+#[derive(Debug)]
 pub struct RateLimiter {
     max_requests: u32,
     per_duration: Duration,
@@ -48,7 +49,7 @@ impl RateLimiter {
     /// # Panics
     /// Panics if acquiring a semaphore permit fails (should be unreachable under normal operation).
     pub async fn acquire(&self) {
-        // Acquire a permit from the semaphore
+        #[allow(clippy::unwrap_used)]
         let _permit = self.semaphore.acquire().await.unwrap();
 
         let sleep_time = {
@@ -66,12 +67,16 @@ impl RateLimiter {
             // If we've hit the limit, return the sleep time
             if *count >= self.max_requests {
                 let sleep_time = self.per_duration.saturating_sub(elapsed);
+                drop(count);
+                drop(window);
                 Some(sleep_time)
             } else {
                 *count += 1;
+                drop(count);
+                drop(window);
                 None
             }
-        }; // Locks are dropped here
+        };
 
         // Sleep outside the lock if needed
         if let Some(duration) = sleep_time {
@@ -90,13 +95,13 @@ impl RateLimiter {
 
     /// Get the maximum requests per duration
     #[must_use]
-    pub fn max_requests(&self) -> u32 {
+    pub const fn max_requests(&self) -> u32 {
         self.max_requests
     }
 
     /// Get the time duration for the rate limit
     #[must_use]
-    pub fn per_duration(&self) -> Duration {
+    pub const fn per_duration(&self) -> Duration {
         self.per_duration
     }
 
@@ -113,16 +118,25 @@ pub struct RateLimitedClient<C> {
     limiter: Arc<RateLimiter>,
 }
 
+impl<C: std::fmt::Debug> std::fmt::Debug for RateLimitedClient<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RateLimitedClient")
+            .field("inner", &self.inner)
+            .field("limiter", &self.limiter)
+            .finish()
+    }
+}
+
 impl<C> RateLimitedClient<C> {
     /// Create a new rate-limited client wrapping an existing HTTP client
     #[must_use]
-    pub fn new(inner: C, limiter: Arc<RateLimiter>) -> Self {
+    pub const fn new(inner: C, limiter: Arc<RateLimiter>) -> Self {
         Self { inner, limiter }
     }
 
     /// Get a reference to the inner client
     #[must_use]
-    pub fn inner(&self) -> &C {
+    pub const fn inner(&self) -> &C {
         &self.inner
     }
 

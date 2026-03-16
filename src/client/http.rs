@@ -9,7 +9,7 @@ use crate::error::{LastFmError, LastFmErrorResponse, Result};
 /// Based on Last.fm API documentation:
 /// - <https://www.last.fm/api/errorcodes>
 /// - <https://lastfm-docs.github.io/api-docs/codes>
-fn is_api_error_retryable(error_code: u32) -> bool {
+const fn is_api_error_retryable(error_code: u32) -> bool {
     matches!(
         error_code,
         8  // Operation failed (temporary server issue)
@@ -42,6 +42,7 @@ pub trait HttpClient: Send + Sync {
 }
 
 /// Production HTTP client using reqwest
+#[derive(Debug)]
 pub struct ReqwestClient {
     client: reqwest::Client,
 }
@@ -50,6 +51,7 @@ impl ReqwestClient {
     #[must_use]
     /// # Panics
     /// Panics if the underlying HTTP client cannot be constructed.
+    #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
@@ -60,7 +62,7 @@ impl ReqwestClient {
     }
 
     #[must_use]
-    pub fn with_client(client: reqwest::Client) -> Self {
+    pub const fn with_client(client: reqwest::Client) -> Self {
         Self { client }
     }
 }
@@ -215,7 +217,7 @@ impl HttpClient for MockClient {
             }
 
             return Err(LastFmError::Api {
-                method: method.clone(),
+                method,
                 message: error.message,
                 error_code: error.error,
                 retryable,
@@ -227,6 +229,7 @@ impl HttpClient for MockClient {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use serde_json::json;

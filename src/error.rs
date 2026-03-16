@@ -72,19 +72,19 @@ pub enum LastFmError {
 impl LastFmError {
     /// Check if this error is retryable
     #[must_use]
-    pub fn is_retryable(&self) -> bool {
+    pub const fn is_retryable(&self) -> bool {
         match self {
-            LastFmError::Api { retryable, .. } => *retryable,
-            LastFmError::RateLimited { .. } | LastFmError::Network(_) => true,
+            Self::Api { retryable, .. } => *retryable,
+            Self::RateLimited { .. } | Self::Network(_) => true,
             _ => false,
         }
     }
 
     /// Get the retry delay if specified
     #[must_use]
-    pub fn retry_after(&self) -> Option<Duration> {
+    pub const fn retry_after(&self) -> Option<Duration> {
         match self {
-            LastFmError::RateLimited { retry_after } => *retry_after,
+            Self::RateLimited { retry_after } => *retry_after,
             _ => None,
         }
     }
@@ -93,16 +93,16 @@ impl LastFmError {
     #[must_use]
     pub fn api_method(&self) -> Option<&str> {
         match self {
-            LastFmError::Api { method, .. } => Some(method),
+            Self::Api { method, .. } => Some(method),
             _ => None,
         }
     }
 
     /// Get the API error code if this is an API error
     #[must_use]
-    pub fn api_error_code(&self) -> Option<u32> {
+    pub const fn api_error_code(&self) -> Option<u32> {
         match self {
-            LastFmError::Api { error_code, .. } => Some(*error_code),
+            Self::Api { error_code, .. } => Some(*error_code),
             _ => None,
         }
     }
@@ -111,7 +111,7 @@ impl LastFmError {
     #[must_use]
     pub fn api_message(&self) -> Option<&str> {
         match self {
-            LastFmError::Api { message, .. } => Some(message),
+            Self::Api { message, .. } => Some(message),
             _ => None,
         }
     }
@@ -120,16 +120,16 @@ impl LastFmError {
     #[must_use]
     pub fn env_var_name(&self) -> Option<&str> {
         match self {
-            LastFmError::MissingEnvVar(name) => Some(name),
+            Self::MissingEnvVar(name) => Some(name),
             _ => None,
         }
     }
 
     /// Get the HTTP status code if this is an HTTP error
     #[must_use]
-    pub fn http_status(&self) -> Option<u16> {
+    pub const fn http_status(&self) -> Option<u16> {
         match self {
-            LastFmError::Http { status, .. } => Some(*status),
+            Self::Http { status, .. } => Some(*status),
             _ => None,
         }
     }
@@ -137,7 +137,7 @@ impl LastFmError {
 
 impl From<url::ParseError> for LastFmError {
     fn from(err: url::ParseError) -> Self {
-        LastFmError::Url { source: err }
+        Self::Url { source: err }
     }
 }
 
@@ -145,6 +145,7 @@ impl From<url::ParseError> for LastFmError {
 pub type Result<T> = std::result::Result<T, LastFmError>;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

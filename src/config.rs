@@ -35,25 +35,25 @@ impl Config {
 
     /// Get the timeout duration
     #[must_use]
-    pub fn timeout(&self) -> Duration {
+    pub const fn timeout(&self) -> Duration {
         self.timeout
     }
 
     /// Get maximum concurrent requests
     #[must_use]
-    pub fn max_concurrent_requests(&self) -> usize {
+    pub const fn max_concurrent_requests(&self) -> usize {
         self.max_concurrent_requests
     }
 
     /// Get retry attempts
     #[must_use]
-    pub fn retry_attempts(&self) -> u32 {
+    pub const fn retry_attempts(&self) -> u32 {
         self.retry_attempts
     }
 
     /// Get rate limit configuration
     #[must_use]
-    pub fn rate_limit(&self) -> Option<&RateLimit> {
+    pub const fn rate_limit(&self) -> Option<&RateLimit> {
         self.rate_limit.as_ref()
     }
 }
@@ -123,7 +123,7 @@ impl ConfigBuilder {
     ///
     /// If not set, defaults to 30 seconds
     #[must_use]
-    pub fn timeout(mut self, duration: Duration) -> Self {
+    pub const fn timeout(mut self, duration: Duration) -> Self {
         self.timeout = Some(duration);
         self
     }
@@ -132,7 +132,7 @@ impl ConfigBuilder {
     ///
     /// If not set, defaults to 5
     #[must_use]
-    pub fn max_concurrent_requests(mut self, max: usize) -> Self {
+    pub const fn max_concurrent_requests(mut self, max: usize) -> Self {
         self.max_concurrent_requests = Some(max);
         self
     }
@@ -141,7 +141,7 @@ impl ConfigBuilder {
     ///
     /// If not set, defaults to 3
     #[must_use]
-    pub fn retry_attempts(mut self, attempts: u32) -> Self {
+    pub const fn retry_attempts(mut self, attempts: u32) -> Self {
         self.retry_attempts = Some(attempts);
         self
     }
@@ -158,7 +158,7 @@ impl ConfigBuilder {
     ///     .rate_limit(5, Duration::from_secs(1)); // Max 5 requests per second
     /// ```
     #[must_use]
-    pub fn rate_limit(mut self, max_requests: u32, per_duration: Duration) -> Self {
+    pub const fn rate_limit(mut self, max_requests: u32, per_duration: Duration) -> Self {
         self.rate_limit = Some(RateLimit {
             max_requests,
             per_duration,
@@ -233,6 +233,7 @@ pub fn get_required_env_var(var_name: &str) -> Result<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

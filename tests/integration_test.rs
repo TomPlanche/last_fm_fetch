@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use lastfm_client::client::MockClient;
 use lastfm_client::{ConfigBuilder, LastFmClient};
 use serde_json::json;

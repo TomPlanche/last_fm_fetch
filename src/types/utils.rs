@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer};
 ///
 /// The Last.fm API sometimes returns numeric values as strings (e.g., "12345" instead of 12345).
 /// This deserializer handles both formats and also removes underscores from string representations.
-pub fn u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
+pub(crate) fn u32_from_str<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -28,7 +28,7 @@ where
 ///
 /// The Last.fm API returns boolean values as strings ("0"/"1" or "true"/"false").
 /// This deserializer converts them to proper Rust boolean values.
-pub fn bool_from_str<'de, D>(deserializer: D) -> Result<bool, D::Error>
+pub(crate) fn bool_from_str<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
     D: Deserializer<'de>,
 {

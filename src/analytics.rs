@@ -60,6 +60,7 @@ pub struct TrackStats {
     pub most_played_track: Option<(String, usize)>,
 }
 
+#[derive(Debug)]
 pub struct AnalysisHandler;
 
 impl AnalysisHandler {

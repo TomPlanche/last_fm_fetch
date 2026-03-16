@@ -6,6 +6,7 @@ use crate::types::{TopAlbum, TrackLimit, UserTopAlbums};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
+use std::fmt;
 use std::sync::Arc;
 
 use super::fetch_utils::{Period, ResourceContainer, fetch};
@@ -14,6 +15,14 @@ use super::fetch_utils::{Period, ResourceContainer, fetch};
 pub struct TopAlbumsClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
+}
+
+impl fmt::Debug for TopAlbumsClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TopAlbumsClient")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 impl TopAlbumsClient {
@@ -36,6 +45,16 @@ pub struct TopAlbumsRequestBuilder {
     period: Option<Period>,
 }
 
+impl fmt::Debug for TopAlbumsRequestBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TopAlbumsRequestBuilder")
+            .field("username", &self.username)
+            .field("limit", &self.limit)
+            .field("period", &self.period)
+            .finish_non_exhaustive()
+    }
+}
+
 impl TopAlbumsRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
@@ -53,14 +72,14 @@ impl TopAlbumsRequestBuilder {
     /// * `limit` - Maximum number of albums to fetch. The Last.fm API supports fetching up to thousands of albums.
     ///   If you need all albums, use `unlimited()` instead.
     #[must_use]
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub const fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
     /// Fetch all available albums (no limit)
     #[must_use]
-    pub fn unlimited(mut self) -> Self {
+    pub const fn unlimited(mut self) -> Self {
         self.limit = None;
         self
     }
@@ -72,7 +91,7 @@ impl TopAlbumsRequestBuilder {
     ///   `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
     ///   If not set, defaults to the Last.fm API's default behavior (typically overall).
     #[must_use]
-    pub fn period(mut self, period: Period) -> Self {
+    pub const fn period(mut self, period: Period) -> Self {
         self.period = Some(period);
         self
     }

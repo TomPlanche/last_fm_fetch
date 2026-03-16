@@ -8,6 +8,7 @@ use std::io::{Result, prelude::*};
 use crate::types::TrackPlayInfo;
 
 /// File format options for saving track data
+#[derive(Debug)]
 #[allow(dead_code)]
 pub enum FileFormat {
     /// Save as JSON format with pretty printing
@@ -16,6 +17,7 @@ pub enum FileFormat {
     Csv,
 }
 
+#[derive(Debug)]
 pub struct FileHandler;
 
 impl FileHandler {

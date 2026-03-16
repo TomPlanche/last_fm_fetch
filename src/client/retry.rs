@@ -24,7 +24,7 @@ impl RetryPolicy {
     /// let policy = RetryPolicy::exponential(3); // Max 3 retries
     /// ```
     #[must_use]
-    pub fn exponential(max_attempts: u32) -> Self {
+    pub const fn exponential(max_attempts: u32) -> Self {
         Self {
             max_attempts,
             base_delay: Duration::from_millis(100),
@@ -44,7 +44,7 @@ impl RetryPolicy {
     /// let policy = RetryPolicy::linear(3); // Max 3 retries
     /// ```
     #[must_use]
-    pub fn linear(max_attempts: u32) -> Self {
+    pub const fn linear(max_attempts: u32) -> Self {
         Self {
             max_attempts,
             base_delay: Duration::from_secs(1),
@@ -55,7 +55,7 @@ impl RetryPolicy {
 
     /// Create a custom retry policy
     #[must_use]
-    pub fn custom(
+    pub const fn custom(
         max_attempts: u32,
         base_delay: Duration,
         max_delay: Duration,
@@ -82,7 +82,7 @@ impl RetryPolicy {
 
     /// Get maximum number of attempts
     #[must_use]
-    pub fn max_attempts(&self) -> u32 {
+    pub const fn max_attempts(&self) -> u32 {
         self.max_attempts
     }
 }
@@ -99,19 +99,28 @@ pub struct RetryClient<C> {
     policy: RetryPolicy,
 }
 
+impl<C: std::fmt::Debug> std::fmt::Debug for RetryClient<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RetryClient")
+            .field("inner", &self.inner)
+            .field("policy", &self.policy)
+            .finish()
+    }
+}
+
 impl<C> RetryClient<C> {
     /// Create a new retry client wrapping an existing HTTP client
-    pub fn new(inner: C, policy: RetryPolicy) -> Self {
+    pub const fn new(inner: C, policy: RetryPolicy) -> Self {
         Self { inner, policy }
     }
 
     /// Get a reference to the inner client
-    pub fn inner(&self) -> &C {
+    pub const fn inner(&self) -> &C {
         &self.inner
     }
 
     /// Get a reference to the retry policy
-    pub fn policy(&self) -> &RetryPolicy {
+    pub const fn policy(&self) -> &RetryPolicy {
         &self.policy
     }
 }
@@ -127,12 +136,9 @@ impl<C: HttpClient + Send + Sync> HttpClient for RetryClient<C> {
                 Err(e) if e.is_retryable() && attempts < self.policy.max_attempts => {
                     attempts += 1;
 
-                    // Check if the error specifies a retry delay
-                    let delay = if let Some(retry_after) = e.retry_after() {
-                        retry_after
-                    } else {
-                        self.policy.backoff(attempts)
-                    };
+                    let delay = e
+                        .retry_after()
+                        .unwrap_or_else(|| self.policy.backoff(attempts));
 
                     // Log the retry attempt (in production, use tracing)
                     #[cfg(debug_assertions)]
