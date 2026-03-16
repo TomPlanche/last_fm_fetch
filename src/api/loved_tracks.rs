@@ -138,6 +138,7 @@ impl LovedTracksRequestBuilder {
             "user.getlovedtracks",
             limit,
             QueryParams::new(),
+            None,
         )
         .await
     }

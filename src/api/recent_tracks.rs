@@ -11,7 +11,7 @@ use crate::url_builder::QueryParams;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
-use super::fetch_utils::{ResourceContainer, fetch};
+use super::fetch_utils::{ProgressCallback, ResourceContainer, fetch};
 
 /// Client for fetching recent tracks
 pub struct RecentTracksClient {
@@ -39,6 +39,7 @@ pub struct RecentTracksRequestBuilder {
     from: Option<i64>,
     to: Option<i64>,
     extended: bool,
+    progress_callback: Option<ProgressCallback>,
 }
 
 impl RecentTracksRequestBuilder {
@@ -51,6 +52,7 @@ impl RecentTracksRequestBuilder {
             from: None,
             to: None,
             extended: false,
+            progress_callback: None,
         }
     }
 
@@ -118,6 +120,13 @@ impl RecentTracksRequestBuilder {
     #[must_use]
     pub fn extended(mut self, extended: bool) -> Self {
         self.extended = extended;
+        self
+    }
+
+    /// Register a progress callback invoked with `(fetched, total)` after each batch.
+    #[must_use]
+    pub fn on_progress(mut self, callback: impl Fn(u32, u32) + Send + Sync + 'static) -> Self {
+        self.progress_callback = Some(Arc::new(callback));
         self
     }
 
@@ -303,6 +312,7 @@ impl RecentTracksRequestBuilder {
             "user.getrecenttracks",
             limit,
             additional_params,
+            self.progress_callback.as_ref(),
         )
         .await
     }
@@ -322,6 +332,7 @@ impl RecentTracksRequestBuilder {
             "user.getrecenttracks",
             limit,
             additional_params,
+            self.progress_callback.as_ref(),
         )
         .await
     }

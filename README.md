@@ -2,7 +2,12 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
-**Version 3.0** removes the deprecated v1.x legacy API (`LastFMHandler`) and focuses entirely on the builder-pattern API with retry logic, rate limiting, and improved ergonomics.
+**Version 3.1** adds a progress callback API for long-running fetches. **Version 3.0** removed the deprecated v1.x legacy API (`LastFMHandler`) and focuses entirely on the builder-pattern API with retry logic, rate limiting, and improved ergonomics.
+
+## What's new in v3.1
+
+- **Progress callbacks**: Track fetch progress in real time via `.on_progress(|fetched, total| { ... })` on `RecentTracksRequestBuilder`
+- **`ProgressCallback` type**: Public type alias `Arc<dyn Fn(u32, u32) + Send + Sync>` exported from the crate root
 
 ## What's new in v3.0
 
@@ -19,7 +24,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.0"
+lastfm-client = "3.1"
 ```
 
 ## Features
@@ -156,6 +161,47 @@ let filename = client
     .limit(50)
     .fetch_and_save(FileFormat::Json, "my_tracks")
     .await?;
+
+// Track progress during a long fetch
+let filename = client
+    .recent_tracks("username")
+    .unlimited()
+    .on_progress(|fetched, total| {
+        println!("{fetched}/{total} tracks fetched");
+    })
+    .fetch_extended_and_save(FileFormat::Json, "all_tracks")
+    .await?;
+```
+
+### Progress Tracking
+
+For large libraries, `.on_progress()` fires after the total is known (`fetched = 0`) and then after each batch (~5000 tracks):
+
+```rust
+use indicatif::{ProgressBar, ProgressStyle};
+
+let pb = ProgressBar::new(0);
+pb.set_style(
+    ProgressStyle::default_bar()
+        .template("{spinner} [{elapsed_precise}] [{bar:40}] {pos}/{len} tracks ({eta})")?
+        .progress_chars("##-"),
+);
+
+let pb_clone = pb.clone();
+let filename = client
+    .recent_tracks("username")
+    .unlimited()
+    .on_progress(move |fetched, total| {
+        if pb_clone.length() == Some(0) {
+            pb_clone.set_length(u64::from(total));
+        }
+        pb_clone.set_position(u64::from(fetched));
+    })
+    .fetch_extended_and_save(FileFormat::Json, "all_tracks")
+    .await?;
+
+pb.finish_and_clear();
+println!("Saved to {filename}");
 ```
 
 ### Fetching Loved Tracks
@@ -332,6 +378,7 @@ client.recent_tracks("username")
     .since(i64)              // Tracks since timestamp
     .between(i64, i64)       // Tracks between two timestamps
     .extended()              // Include extended info
+    .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
     .fetch()                 // Execute and get Vec<RecentTrack>
     .fetch_extended()        // Execute and get Vec<RecentTrackExtended>
     .check_currently_playing() // Check if currently playing

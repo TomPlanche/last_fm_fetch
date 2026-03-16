@@ -6,7 +6,7 @@ mod top_albums;
 mod top_artists;
 mod top_tracks;
 
-pub use fetch_utils::{Period, ResourceContainer};
+pub use fetch_utils::{Period, ProgressCallback, ResourceContainer};
 pub use loved_tracks::{LovedTracksClient, LovedTracksRequestBuilder};
 pub use recent_tracks::{RecentTracksClient, RecentTracksRequestBuilder};
 pub use top_albums::{TopAlbumsClient, TopAlbumsRequestBuilder};

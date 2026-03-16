@@ -129,6 +129,7 @@ impl TopAlbumsRequestBuilder {
             "user.gettopalbums",
             limit,
             additional_params,
+            None,
         )
         .await
     }

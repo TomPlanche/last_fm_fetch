@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-03-16
+
+### Added
+
+- **Progress callbacks**: `RecentTracksRequestBuilder::on_progress(callback)` accepts any `Fn(u32, u32) + Send + Sync + 'static` and fires with `(fetched, total)` after each batch of tracks is received (and once at `(0, total)` when the total is first known from the API)
+- **`ProgressCallback` type alias**: `Arc<dyn Fn(u32, u32) + Send + Sync>` is now exported from the crate root for use in calling code
+- Generic `fetch()` in `fetch_utils` accepts an optional `ProgressCallback`; all existing callers (`loved_tracks`, `top_tracks`, `top_artists`, `top_albums`) pass `None` and are unaffected
+
 ## [3.0.0] - 2026-02-07
 
 ### Added

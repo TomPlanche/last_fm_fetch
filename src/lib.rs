@@ -23,8 +23,8 @@ pub use types::{Period, TrackLimit};
 
 // Re-export API clients
 pub use api::{
-    LovedTracksClient, LovedTracksRequestBuilder, RecentTracksClient, RecentTracksRequestBuilder,
-    TopTracksClient, TopTracksRequestBuilder,
+    LovedTracksClient, LovedTracksRequestBuilder, ProgressCallback, RecentTracksClient,
+    RecentTracksRequestBuilder, TopTracksClient, TopTracksRequestBuilder,
 };
 
 // Re-export commonly used types
