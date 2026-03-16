@@ -1,6 +1,6 @@
 [package]
 name = "lastfm-client"
-version = "3.3.0"
+version = "3.4.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
@@ -53,7 +53,7 @@ nursery     = { level = "warn", priority = -1 }
 exhaustive_enums   = "warn"
 exhaustive_structs = "warn"
 
-# Allowed — noisy in a library where types naturally carry the crate prefix
+# Allowed - noisy in a library where types naturally carry the crate prefix
 module_name_repetitions = "allow"
 redundant_pub_crate     = "allow"
 

@@ -2,9 +2,13 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v3.4
+
+- **NDJSON export**: `FileFormat::Ndjson` produces `.ndjson` files (one compact JSON object per line). `fetch_and_save` and `fetch_and_update` both support it - incremental updates append new lines without rewriting the whole file. `FileHandler::load_ndjson` and `FileHandler::append_or_create_ndjson` are also public. Way faster than JSON for updates.
+
 ## What's new in v3.3
 
-- **SQLite export** (`sqlite` feature): `fetch_and_save_sqlite` and `fetch_and_update_sqlite` on all resource builders — see [SQLite Export](#sqlite-export-optional-feature)
+- **SQLite export** (`sqlite` feature): `fetch_and_save_sqlite` and `fetch_and_update_sqlite` on all resource builders - see [SQLite Export](#sqlite-export-optional-feature)
 
 ## What's new in v3.0
 
@@ -21,7 +25,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.3"
+lastfm-client = "3.4"
 ```
 
 ### Optional Features
@@ -32,7 +36,7 @@ lastfm-client = "3.3"
 
 ```toml
 [dependencies]
-lastfm-client = { version = "3.3", features = ["sqlite"] }
+lastfm-client = { version = "3.4", features = ["sqlite"] }
 ```
 
 ## Features
@@ -56,10 +60,10 @@ lastfm-client = { version = "3.3", features = ["sqlite"] }
 - **Custom Analysis**: Extensible analysis framework with the `TrackAnalyzable` trait
 
 ### Data Export
-- **Multiple Formats**: Export data in JSON, CSV, and SQLite formats
+- **Multiple Formats**: Export data in JSON, NDJSON, CSV, and SQLite formats
 - **Timestamp-based Filenames**: Automatic file naming with timestamps
 - **Organized Storage**: Structured data directory management
-- **Incremental Updates**: `fetch_and_update` writes only new entries to an existing file (prepend for JSON, append for CSV); a sidecar metadata file keeps repeated calls fast regardless of file size
+- **Incremental Updates**: `fetch_and_update` writes only new entries to an existing file (prepend for JSON, append for CSV and NDJSON); a sidecar metadata file keeps repeated calls fast regardless of file size
 - **SQLite Export** (`sqlite` feature): Export to a queryable `.db` file; incremental updates use `MAX(date_uts)` directly from the database with no sidecar needed
 
 ## Configuration
@@ -201,6 +205,14 @@ let new_count = client
     .await?;
 println!("{new_count} new scrobbles");
 
+// Incremental update (NDJSON): new records are appended as lines to the .ndjson file.
+// A sidecar (data/scrobbles.ndjson.meta) tracks the latest timestamp.
+let new_count = client
+    .recent_tracks("username")
+    .fetch_and_update("data/scrobbles.ndjson")
+    .await?;
+println!("{new_count} new scrobbles");
+
 // Same for extended tracks (JSON or CSV path works)
 let new_count = client
     .recent_tracks("username")
@@ -215,7 +227,7 @@ let db_path = client
     .await?;
 println!("Saved to {db_path}");
 
-// SQLite incremental update — reads MAX(date_uts) from the DB, no sidecar file needed
+// SQLite incremental update - reads MAX(date_uts) from the DB, no sidecar file needed
 let new_count = client
     .recent_tracks("username")
     .fetch_and_update_sqlite("data/scrobbles.db")
@@ -228,7 +240,7 @@ println!("{new_count} new scrobbles inserted");
 Enable the `sqlite` feature in `Cargo.toml`:
 
 ```toml
-lastfm-client = { version = "3.3", features = ["sqlite"] }
+lastfm-client = { version = "3.4", features = ["sqlite"] }
 ```
 
 All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. The databases can be queried with any SQLite tool:
@@ -542,7 +554,7 @@ client.top_albums("username")
 - **`from`/`to`**: `Option<i64>` - Unix timestamps in seconds
 - **`extended`**: `bool` - Whether to fetch extended track information
 - **`period`**: `Option<Period>` - Time period filter (Week, Month, ThreeMonth, etc.)
-- **`format`**: `FileFormat` - `FileFormat::Json` or `FileFormat::Csv`
+- **`format`**: `FileFormat` - `FileFormat::Json`, `FileFormat::Csv`, or `FileFormat::Ndjson`
 
 ## Testing
 
@@ -631,7 +643,7 @@ src/
 ├── config.rs                # Configuration with builder
 ├── error.rs                 # Rich error types with retry hints
 ├── analytics.rs             # TrackAnalyzable trait + AnalysisHandler
-├── file_handler.rs          # JSON/CSV/SQLite export
+├── file_handler.rs          # JSON/NDJSON/CSV/SQLite export
 └── sqlite.rs                # SqliteExportable trait (sqlite feature only)
 ```
 
