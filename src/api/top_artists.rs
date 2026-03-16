@@ -26,6 +26,7 @@ impl fmt::Debug for TopArtistsClient {
 }
 
 impl TopArtistsClient {
+    /// Create a new top artists client
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }

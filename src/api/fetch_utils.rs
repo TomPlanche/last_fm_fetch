@@ -17,6 +17,7 @@ pub type ProgressCallback = Arc<dyn Fn(u32, u32) + Send + Sync>;
 ///
 /// These periods define the time range for calculating top tracks.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum Period {
     /// All-time top tracks (no time limit)
     Overall,
@@ -33,6 +34,7 @@ pub enum Period {
 }
 
 impl Period {
+    /// Convert to the Last.fm API string representation
     #[must_use]
     pub const fn as_api_str(self) -> &'static str {
         match self {
@@ -48,9 +50,12 @@ impl Period {
 
 /// Trait for containers that hold Last.fm resources (tracks, artists, etc.)
 pub trait ResourceContainer {
+    /// The type of items contained in this resource
     type ItemType;
 
+    /// Get the total number of items available
     fn total(&self) -> u32;
+    /// Extract the items from this container
     fn items(self) -> Vec<Self::ItemType>;
 }
 

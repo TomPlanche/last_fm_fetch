@@ -1,3 +1,4 @@
+/// API constants (base URL, limits, chunk sizes)
 pub mod constants;
 mod fetch_utils;
 mod loved_tracks;

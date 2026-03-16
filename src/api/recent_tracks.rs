@@ -4,7 +4,8 @@ use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    RecentTrack, RecentTrackExtended, TrackLimit, UserRecentTracks, UserRecentTracksExtended,
+    RecentTrack, RecentTrackExtended, Timestamped, TrackLimit, UserRecentTracks,
+    UserRecentTracksExtended,
 };
 use crate::url_builder::QueryParams;
 
@@ -29,6 +30,7 @@ impl fmt::Debug for RecentTracksClient {
 }
 
 impl RecentTracksClient {
+    /// Create a new recent tracks client
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }
@@ -223,6 +225,13 @@ impl RecentTracksRequestBuilder {
         tracing::info!("Saving {} recent tracks to file", tracks.len());
         let filename = FileHandler::save(&tracks, &format, filename_prefix)
             .map_err(crate::error::LastFmError::Io)?;
+        if let Some(latest_ts) = tracks
+            .first()
+            .and_then(crate::types::Timestamped::get_timestamp)
+        {
+            FileHandler::write_sidecar_timestamp(&filename, latest_ts)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
         Ok(filename)
     }
 
@@ -244,9 +253,104 @@ impl RecentTracksRequestBuilder {
     ) -> Result<String> {
         let tracks = self.fetch_extended().await?;
         tracing::info!("Saving {} recent tracks (extended) to file", tracks.len());
+
         let filename = FileHandler::save(&tracks, &format, filename_prefix)
             .map_err(crate::error::LastFmError::Io)?;
+
+        if let Some(latest_ts) = tracks
+            .first()
+            .and_then(crate::types::Timestamped::get_timestamp)
+        {
+            FileHandler::write_sidecar_timestamp(&filename, latest_ts)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
         Ok(filename)
+    }
+
+    /// Fetch only tracks newer than the most recent entry in an existing JSON file and prepend
+    /// them to it. If the file does not exist, all tracks are fetched and the file is created.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the JSON file to update (or create)
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the file
+    /// cannot be read or written.
+    ///
+    /// # Returns
+    /// * `Result<usize>` - Number of new tracks prepended
+    pub async fn fetch_and_update(self, file_path: &str) -> Result<usize> {
+        self.update_impl(file_path, Self::fetch).await
+    }
+
+    /// Fetch only extended tracks newer than the most recent entry in an existing JSON file and
+    /// prepend them to it. If the file does not exist, all tracks are fetched and the file is
+    /// created.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the JSON file to update (or create)
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the file
+    /// cannot be read or written.
+    ///
+    /// # Returns
+    /// * `Result<usize>` - Number of new tracks prepended
+    pub async fn fetch_extended_and_update(self, file_path: &str) -> Result<usize> {
+        self.update_impl(file_path, Self::fetch_extended).await
+    }
+
+    async fn update_impl<T, F, Fut>(self, file_path: &str, fetch_fn: F) -> Result<usize>
+    where
+        T: serde::de::DeserializeOwned + serde::Serialize + Clone + Timestamped,
+        F: FnOnce(Self) -> Fut,
+        Fut: std::future::Future<Output = Result<Vec<T>>>,
+    {
+        let is_csv = std::path::Path::new(file_path)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+
+        let since_timestamp = if let Some(ts) = FileHandler::read_sidecar_timestamp(file_path) {
+            // Fast path: sidecar has the latest timestamp, no need to read the full file.
+            Some(ts)
+        } else if !is_csv && std::path::Path::new(file_path).exists() {
+            // Slow path for JSON only — CSV round-trips through serde are unreliable for
+            // complex nested types, so the sidecar is the only trusted timestamp source.
+            let existing: Vec<T> =
+                FileHandler::load(file_path).map_err(crate::error::LastFmError::Io)?;
+            let ts = existing.iter().filter_map(Timestamped::get_timestamp).max();
+            if let Some(t) = ts {
+                FileHandler::write_sidecar_timestamp(file_path, t)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+            ts
+        } else {
+            None
+        };
+
+        let builder = match since_timestamp {
+            Some(ts) => self.since(i64::from(ts) + 1),
+            None => self,
+        };
+
+        let new_tracks = fetch_fn(builder).await?;
+        let count = new_tracks.len();
+
+        if !new_tracks.is_empty() {
+            if let Some(latest_ts) = new_tracks.first().and_then(Timestamped::get_timestamp) {
+                FileHandler::write_sidecar_timestamp(file_path, latest_ts)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+            if is_csv {
+                FileHandler::append_or_create_csv(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            } else {
+                FileHandler::prepend_json(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+        }
+
+        Ok(count)
     }
 
     /// Analyze tracks and return statistics

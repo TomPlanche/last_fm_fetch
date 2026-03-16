@@ -2,28 +2,41 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
 
+/// Raw error response from the Last.fm API
 #[derive(Debug, Deserialize, Serialize)]
+#[non_exhaustive]
 pub struct LastFmErrorResponse {
+    /// Human-readable error message
     pub message: String,
+    /// Numeric error code
     pub error: u32,
 }
 
+/// Errors that can occur when interacting with the Last.fm API
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum LastFmError {
     /// Represents a Last.fm API error with code and message
     /// Access details via the struct fields: `method`, `message`, `error_code`, `retryable`
     #[error("api error (method: {method}, code: {error_code}): {message}")]
     Api {
+        /// API method that caused the error
         method: String,
+        /// Human-readable error message
         message: String,
+        /// Numeric Last.fm error code
         error_code: u32,
+        /// Whether this error is retryable
         retryable: bool,
     },
 
     /// Represents rate limiting error
     /// Access `retry_after` via the struct field
     #[error("rate limit exceeded{}", retry_after.map(|d| format!(" (retry after {}ms)", d.as_millis())).unwrap_or_default())]
-    RateLimited { retry_after: Option<Duration> },
+    RateLimited {
+        /// Suggested delay before retrying
+        retry_after: Option<Duration>,
+    },
 
     /// Represents HTTP/network errors
     /// Access source error via `Error::source()`
@@ -56,7 +69,9 @@ pub enum LastFmError {
     /// Represents HTTP response errors (non-success status codes)
     #[error("http error (status: {status})")]
     Http {
+        /// HTTP status code
         status: u16,
+        /// Underlying error source
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
@@ -64,6 +79,7 @@ pub enum LastFmError {
     /// Represents URL parsing errors
     #[error("invalid url: {source}")]
     Url {
+        /// URL parse error
         #[source]
         source: url::ParseError,
     },

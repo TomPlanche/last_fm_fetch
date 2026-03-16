@@ -1,3 +1,5 @@
+//! Demonstrates environment variable validation.
+
 use lastfm_client::LastFmClient;
 
 /// Example demonstrating environment variable validation

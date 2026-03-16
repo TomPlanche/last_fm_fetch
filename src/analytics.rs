@@ -43,6 +43,7 @@ impl TrackAnalyzable for LovedTrack {
 
 /// Represents statistics about tracks
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct TrackStats {
     /// Total number of tracks
     pub total_tracks: usize,
@@ -60,7 +61,9 @@ pub struct TrackStats {
     pub most_played_track: Option<(String, usize)>,
 }
 
+/// Handler for track analysis operations
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct AnalysisHandler;
 
 impl AnalysisHandler {

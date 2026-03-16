@@ -61,6 +61,7 @@ impl ReqwestClient {
         }
     }
 
+    /// Create a new client with an existing reqwest client
     #[must_use]
     pub const fn with_client(client: reqwest::Client) -> Self {
         Self { client }
@@ -166,6 +167,7 @@ pub struct MockClient {
 }
 
 impl MockClient {
+    /// Create a new empty mock client
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -173,6 +175,7 @@ impl MockClient {
         }
     }
 
+    /// Add a mock response for the given API method
     #[must_use]
     pub fn with_response(mut self, method: &str, data: serde_json::Value) -> Self {
         self.responses.insert(method.to_string(), data);

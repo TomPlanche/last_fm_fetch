@@ -9,6 +9,7 @@ use crate::types::utils::{bool_from_str, u32_from_str};
 ///
 /// Retrieved from the `user.gettopartists` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopArtist {
     /// Artist name
     pub name: String,
@@ -39,14 +40,21 @@ impl fmt::Display for TopArtist {
     }
 }
 
+/// Top artists response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopArtists {
+    /// List of top artists
     pub artist: Vec<TopArtist>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level top artists API response
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct UserTopArtists {
+    /// Top artists data
     pub topartists: TopArtists,
 }

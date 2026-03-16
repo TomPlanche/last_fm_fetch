@@ -1,3 +1,5 @@
+//! Demonstrates the builder-pattern API.
+
 use lastfm_client::LastFmClient;
 
 /// Example demonstrating the new v2.0 API with builder pattern

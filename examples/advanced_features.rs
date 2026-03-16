@@ -1,3 +1,5 @@
+//! Demonstrates advanced features (retry, rate limiting).
+
 use lastfm_client::LastFmClient;
 use std::time::Duration;
 

@@ -1,6 +1,6 @@
 [package]
 name = "lastfm-client"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
@@ -29,21 +29,31 @@ tokio = { version = "1.49.0", features = ["full", "test-util", "rt-multi-thread"
 [lints.rust]
 dead_code                     = "deny"
 missing_debug_implementations = "deny"
+missing_docs                  = "warn"
 unreachable_pub               = "deny"
 unsafe_code                   = "forbid"
 unused_imports                = "deny"
 unused_variables              = "deny"
 
 [lints.clippy]
-correctness        = { level = "deny", priority = -1 }
-suspicious         = { level = "deny", priority = -1 }
-complexity         = { level = "deny", priority = -1 }
-perf               = { level = "deny", priority = -1 }
-style              = { level = "deny", priority = -1 }
-pedantic           = { level = "deny", priority = -1 }
-nursery            = { level = "warn", priority = -1 }
-redundant_pub_crate = "allow"
+# Lint groups (lower priority so individual overrides win)
+correctness = { level = "deny", priority = -1 }
+suspicious  = { level = "deny", priority = -1 }
+complexity  = { level = "deny", priority = -1 }
+perf        = { level = "deny", priority = -1 }
+style       = { level = "deny", priority = -1 }
+pedantic    = { level = "deny", priority = -1 }
+nursery     = { level = "warn", priority = -1 }
 
+# Library API stability (restriction group)
+exhaustive_enums   = "warn"
+exhaustive_structs = "warn"
+
+# Allowed — noisy in a library where types naturally carry the crate prefix
+module_name_repetitions = "allow"
+redundant_pub_crate     = "allow"
+
+# Panics / fallible ops
 expect_used = "warn"
 panic       = "warn"
 todo        = "warn"

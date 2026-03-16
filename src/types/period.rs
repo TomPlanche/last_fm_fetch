@@ -1,11 +1,18 @@
 /// Period options for Last.fm time range filters
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Period {
+    /// All-time (no time limit)
     Overall,
+    /// Last 7 days
     Week,
+    /// Last 30 days
     Month,
+    /// Last 3 months
     ThreeMonth,
+    /// Last 6 months
     SixMonth,
+    /// Last 12 months
     TwelveMonth,
 }
 
@@ -13,8 +20,11 @@ impl Period {}
 
 /// Track limit options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TrackLimit {
+    /// Fetch up to the specified number of items
     Limited(u32),
+    /// Fetch all available items
     Unlimited,
 }
 

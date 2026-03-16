@@ -1,3 +1,5 @@
+//! Integration tests for the lastfm-client library.
+
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use lastfm_client::client::MockClient;
