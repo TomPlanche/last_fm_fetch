@@ -10,6 +10,9 @@ use std::sync::Arc;
 
 use super::constants::{API_MAX_LIMIT, BASE_URL, CHUNK_MULTIPLIER, CHUNK_SIZE};
 
+/// Callback invoked with `(fetched, total)` after each batch of tracks is received.
+pub type ProgressCallback = Arc<dyn Fn(u32, u32) + Send + Sync>;
+
 /// Period options for Last.fm time range filters
 ///
 /// These periods define the time range for calculating top tracks.
@@ -59,6 +62,7 @@ pub async fn fetch<T, R>(
     method: &str,
     limit: TrackLimit,
     additional_params: QueryParams,
+    on_progress: Option<&ProgressCallback>,
 ) -> Result<Vec<T>>
 where
     R: DeserializeOwned + ResourceContainer<ItemType = T>,
@@ -87,6 +91,11 @@ where
         return Ok(Vec::new());
     }
 
+    // Report initial state (total known, nothing fetched yet)
+    if let Some(cb) = on_progress {
+        cb(0, final_limit);
+    }
+
     if final_limit <= API_MAX_LIMIT {
         // If we need less than the API limit, just make a single request
         let mut single_params = base_params;
@@ -94,11 +103,17 @@ where
         single_params.insert("page".to_string(), "1".to_string());
 
         let response: R = fetch_json(&http, &single_params).await?;
-        return Ok(response
+        let items: Vec<T> = response
             .items()
             .into_iter()
             .take(final_limit as usize)
-            .collect());
+            .collect();
+
+        if let Some(cb) = on_progress {
+            cb(items.len() as u32, final_limit);
+        }
+
+        return Ok(items);
     }
 
     // Handle pagination with chunking
@@ -150,6 +165,10 @@ where
         // Collect results from this chunk
         for result in chunk_results {
             all_tracks.extend(result?);
+        }
+
+        if let Some(cb) = on_progress {
+            cb(all_tracks.len() as u32, final_limit);
         }
     }
 

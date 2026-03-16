@@ -129,6 +129,7 @@ impl TopArtistsRequestBuilder {
             "user.gettopartists",
             limit,
             additional_params,
+            None,
         )
         .await
     }

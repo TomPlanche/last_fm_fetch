@@ -140,6 +140,7 @@ impl TopTracksRequestBuilder {
             "user.gettoptracks",
             limit,
             additional_params,
+            None,
         )
         .await
     }
