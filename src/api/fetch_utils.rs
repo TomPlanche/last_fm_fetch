@@ -34,14 +34,14 @@ pub enum Period {
 
 impl Period {
     #[must_use]
-    pub fn as_api_str(self) -> &'static str {
+    pub const fn as_api_str(self) -> &'static str {
         match self {
-            Period::Overall => "overall",
-            Period::Week => "7day",
-            Period::Month => "1month",
-            Period::ThreeMonth => "3month",
-            Period::SixMonth => "6month",
-            Period::TwelveMonth => "12month",
+            Self::Overall => "overall",
+            Self::Week => "7day",
+            Self::Month => "1month",
+            Self::ThreeMonth => "3month",
+            Self::SixMonth => "6month",
+            Self::TwelveMonth => "12month",
         }
     }
 }
@@ -55,7 +55,7 @@ pub trait ResourceContainer {
 }
 
 /// Generic function to fetch things with pagination
-pub async fn fetch<T, R>(
+pub(super) async fn fetch<T, R>(
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,
@@ -110,6 +110,7 @@ where
             .collect();
 
         if let Some(cb) = on_progress {
+            #[allow(clippy::cast_possible_truncation)]
             cb(items.len() as u32, final_limit);
         }
 
@@ -168,6 +169,7 @@ where
         }
 
         if let Some(cb) = on_progress {
+            #[allow(clippy::cast_possible_truncation)]
             cb(all_tracks.len() as u32, final_limit);
         }
     }
@@ -182,16 +184,11 @@ async fn fetch_json<T: DeserializeOwned>(
     let url = Url::new(BASE_URL).add_args(params.clone()).build();
     let response = http.get(&url).await?;
 
-    match serde_json::from_value::<T>(response.clone()) {
+    match serde_json::from_value::<T>(response) {
         Ok(parsed) => Ok(parsed),
         Err(err) => {
             #[cfg(debug_assertions)]
-            {
-                eprintln!(
-                    "Deserialization failed: {err}\nURL: {url}\nRaw JSON:\n{}",
-                    serde_json::to_string_pretty(&response).unwrap_or_default()
-                );
-            }
+            eprintln!("Deserialization failed: {err}\nURL: {url}");
             Err(err.into())
         }
     }

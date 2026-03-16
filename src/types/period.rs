@@ -20,16 +20,13 @@ pub enum TrackLimit {
 
 impl From<Option<u32>> for TrackLimit {
     fn from(opt: Option<u32>) -> Self {
-        match opt {
-            Some(limit) => TrackLimit::Limited(limit),
-            None => TrackLimit::Unlimited,
-        }
+        opt.map_or(Self::Unlimited, Self::Limited)
     }
 }
 
 impl From<u32> for TrackLimit {
     fn from(limit: u32) -> Self {
-        TrackLimit::Limited(limit)
+        Self::Limited(limit)
     }
 }
 

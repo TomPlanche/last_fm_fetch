@@ -37,6 +37,14 @@ pub struct LastFmClient {
     top_albums_client: TopAlbumsClient,
 }
 
+impl std::fmt::Debug for LastFmClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LastFmClient")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
 impl LastFmClient {
     /// Create a new configuration builder
     ///
@@ -90,9 +98,8 @@ impl LastFmClient {
         let base_client = ReqwestClient::new();
 
         // Build the HTTP client with retry and rate limiting
+        let retry_policy = RetryPolicy::exponential(config.retry_attempts());
         let http: Arc<dyn HttpClient> = if let Some(rate_limit_config) = config.rate_limit() {
-            // With rate limiting
-            let retry_policy = RetryPolicy::exponential(config.retry_attempts());
             let retry_client = RetryClient::new(base_client, retry_policy);
 
             let limiter = Arc::new(RateLimiter::new(
@@ -101,8 +108,6 @@ impl LastFmClient {
             ));
             Arc::new(RateLimitedClient::new(retry_client, limiter))
         } else {
-            // Without rate limiting, just retry
-            let retry_policy = RetryPolicy::exponential(config.retry_attempts());
             Arc::new(RetryClient::new(base_client, retry_policy))
         };
 
@@ -331,6 +336,7 @@ impl ConfigBuilder {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::client::MockClient;

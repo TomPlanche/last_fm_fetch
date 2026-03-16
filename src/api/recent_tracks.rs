@@ -9,6 +9,7 @@ use crate::types::{
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
+use std::fmt;
 use std::sync::Arc;
 
 use super::fetch_utils::{ProgressCallback, ResourceContainer, fetch};
@@ -17,6 +18,14 @@ use super::fetch_utils::{ProgressCallback, ResourceContainer, fetch};
 pub struct RecentTracksClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
+}
+
+impl fmt::Debug for RecentTracksClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecentTracksClient")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RecentTracksClient {
@@ -42,6 +51,18 @@ pub struct RecentTracksRequestBuilder {
     progress_callback: Option<ProgressCallback>,
 }
 
+impl fmt::Debug for RecentTracksRequestBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecentTracksRequestBuilder")
+            .field("username", &self.username)
+            .field("limit", &self.limit)
+            .field("from", &self.from)
+            .field("to", &self.to)
+            .field("extended", &self.extended)
+            .finish_non_exhaustive()
+    }
+}
+
 impl RecentTracksRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
@@ -62,14 +83,14 @@ impl RecentTracksRequestBuilder {
     /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
     ///   If you need all tracks, use `unlimited()` instead.
     #[must_use]
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub const fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
     /// Fetch all available tracks (no limit)
     #[must_use]
-    pub fn unlimited(mut self) -> Self {
+    pub const fn unlimited(mut self) -> Self {
         self.limit = None;
         self
     }
@@ -89,7 +110,7 @@ impl RecentTracksRequestBuilder {
     ///     .await?;
     /// ```
     #[must_use]
-    pub fn since(mut self, timestamp: i64) -> Self {
+    pub const fn since(mut self, timestamp: i64) -> Self {
         self.from = Some(timestamp);
         self
     }
@@ -110,7 +131,7 @@ impl RecentTracksRequestBuilder {
     ///     .await?;
     /// ```
     #[must_use]
-    pub fn between(mut self, from: i64, to: i64) -> Self {
+    pub const fn between(mut self, from: i64, to: i64) -> Self {
         self.from = Some(from);
         self.to = Some(to);
         self
@@ -118,7 +139,7 @@ impl RecentTracksRequestBuilder {
 
     /// Fetch extended track information
     #[must_use]
-    pub fn extended(mut self, extended: bool) -> Self {
+    pub const fn extended(mut self, extended: bool) -> Self {
         self.extended = extended;
         self
     }

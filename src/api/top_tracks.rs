@@ -6,6 +6,7 @@ use crate::types::{TopTrack, TrackLimit, UserTopTracks};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
+use std::fmt;
 use std::sync::Arc;
 
 use super::fetch_utils::{Period, ResourceContainer, fetch};
@@ -14,6 +15,14 @@ use super::fetch_utils::{Period, ResourceContainer, fetch};
 pub struct TopTracksClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
+}
+
+impl fmt::Debug for TopTracksClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TopTracksClient")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 impl TopTracksClient {
@@ -36,6 +45,16 @@ pub struct TopTracksRequestBuilder {
     period: Option<Period>,
 }
 
+impl fmt::Debug for TopTracksRequestBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TopTracksRequestBuilder")
+            .field("username", &self.username)
+            .field("limit", &self.limit)
+            .field("period", &self.period)
+            .finish_non_exhaustive()
+    }
+}
+
 impl TopTracksRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
@@ -53,14 +72,14 @@ impl TopTracksRequestBuilder {
     /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
     ///   If you need all tracks, use `unlimited()` instead.
     #[must_use]
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub const fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
     /// Fetch all available tracks (no limit)
     #[must_use]
-    pub fn unlimited(mut self) -> Self {
+    pub const fn unlimited(mut self) -> Self {
         self.limit = None;
         self
     }
@@ -83,7 +102,7 @@ impl TopTracksRequestBuilder {
     ///     .await?;
     /// ```
     #[must_use]
-    pub fn period(mut self, period: Period) -> Self {
+    pub const fn period(mut self, period: Period) -> Self {
         self.period = Some(period);
         self
     }

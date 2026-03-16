@@ -11,7 +11,7 @@ pub struct Url {
 impl Url {
     #[must_use]
     pub fn new(base: &str) -> Self {
-        Url {
+        Self {
             base: base.to_string(),
             query_params: HashMap::new(),
         }

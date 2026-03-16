@@ -6,6 +6,7 @@ use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{LovedTrack, TrackLimit, UserLovedTracks};
 
 use serde::de::DeserializeOwned;
+use std::fmt;
 use std::sync::Arc;
 
 use super::fetch_utils::{ResourceContainer, fetch};
@@ -14,6 +15,14 @@ use super::fetch_utils::{ResourceContainer, fetch};
 pub struct LovedTracksClient {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
+}
+
+impl fmt::Debug for LovedTracksClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LovedTracksClient")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 impl LovedTracksClient {
@@ -35,6 +44,15 @@ pub struct LovedTracksRequestBuilder {
     limit: Option<u32>,
 }
 
+impl fmt::Debug for LovedTracksRequestBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LovedTracksRequestBuilder")
+            .field("username", &self.username)
+            .field("limit", &self.limit)
+            .finish_non_exhaustive()
+    }
+}
+
 impl LovedTracksRequestBuilder {
     fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
@@ -51,14 +69,14 @@ impl LovedTracksRequestBuilder {
     /// * `limit` - Maximum number of tracks to fetch. The Last.fm API supports fetching up to thousands of tracks.
     ///   If you need all tracks, use `unlimited()` instead.
     #[must_use]
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub const fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
     /// Fetch all available tracks (no limit)
     #[must_use]
-    pub fn unlimited(mut self) -> Self {
+    pub const fn unlimited(mut self) -> Self {
         self.limit = None;
         self
     }
