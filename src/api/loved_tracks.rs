@@ -199,13 +199,16 @@ impl LovedTracksRequestBuilder {
     /// # Returns
     /// * `Result<usize>` - Number of new tracks prepended
     pub async fn fetch_and_update(self, file_path: &str) -> Result<usize> {
-        let is_csv = std::path::Path::new(file_path)
+        let ext = std::path::Path::new(file_path)
             .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+        let is_csv = ext.as_deref() == Some("csv");
+        let is_ndjson = ext.as_deref() == Some("ndjson");
 
         let max_existing_ts = if let Some(ts) = FileHandler::read_sidecar_timestamp(file_path) {
             Some(ts)
-        } else if !is_csv && std::path::Path::new(file_path).exists() {
+        } else if !is_csv && !is_ndjson && std::path::Path::new(file_path).exists() {
             let existing: Vec<LovedTrack> =
                 FileHandler::load(file_path).map_err(crate::error::LastFmError::Io)?;
             let ts = existing.iter().filter_map(Timestamped::get_timestamp).max();
@@ -240,6 +243,9 @@ impl LovedTracksRequestBuilder {
             }
             if is_csv {
                 FileHandler::append_or_create_csv(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            } else if is_ndjson {
+                FileHandler::append_or_create_ndjson(&new_tracks, file_path)
                     .map_err(crate::error::LastFmError::Io)?;
             } else {
                 FileHandler::prepend_json(&new_tracks, file_path)

@@ -306,15 +306,18 @@ impl RecentTracksRequestBuilder {
         F: FnOnce(Self) -> Fut,
         Fut: std::future::Future<Output = Result<Vec<T>>>,
     {
-        let is_csv = std::path::Path::new(file_path)
+        let ext = std::path::Path::new(file_path)
             .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+        let is_csv = ext.as_deref() == Some("csv");
+        let is_ndjson = ext.as_deref() == Some("ndjson");
 
         let since_timestamp = if let Some(ts) = FileHandler::read_sidecar_timestamp(file_path) {
             // Fast path: sidecar has the latest timestamp, no need to read the full file.
             Some(ts)
-        } else if !is_csv && std::path::Path::new(file_path).exists() {
-            // Slow path for JSON only — CSV round-trips through serde are unreliable for
+        } else if !is_csv && !is_ndjson && std::path::Path::new(file_path).exists() {
+            // Slow path for JSON only - CSV/NDJSON round-trips through serde are unreliable for
             // complex nested types, so the sidecar is the only trusted timestamp source.
             let existing: Vec<T> =
                 FileHandler::load(file_path).map_err(crate::error::LastFmError::Io)?;
@@ -343,6 +346,9 @@ impl RecentTracksRequestBuilder {
             }
             if is_csv {
                 FileHandler::append_or_create_csv(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            } else if is_ndjson {
+                FileHandler::append_or_create_ndjson(&new_tracks, file_path)
                     .map_err(crate::error::LastFmError::Io)?;
             } else {
                 FileHandler::prepend_json(&new_tracks, file_path)
@@ -379,7 +385,7 @@ impl RecentTracksRequestBuilder {
     /// the database is created.
     ///
     /// The latest timestamp is determined by querying `MAX(date_uts)` directly from the
-    /// database — no sidecar file is needed.
+    /// database - no sidecar file is needed.
     ///
     /// # Arguments
     /// * `db_path` - Path to the `SQLite` database file to update (or create)

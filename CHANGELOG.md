@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-03-16
+
+### Added
+
+- **`FileFormat::Ndjson`**: New export format that writes one compact JSON object per line (`.ndjson` extension)
+- **`FileHandler::save_as_ndjson`** (private): Creates an NDJSON file from a slice
+- **`FileHandler::append_or_create_ndjson`**: Appends items as new lines to an existing NDJSON file, or creates it if it does not exist; mirrors `append_or_create_csv`
+- **`FileHandler::load_ndjson`**: Deserializes an NDJSON file line-by-line into `Vec<T>`
+- **NDJSON support in incremental update flow**: `fetch_and_update` on `RecentTracksRequestBuilder` and `LovedTracksRequestBuilder` now detects `.ndjson` paths and appends new records (oldest-first), complementing the existing JSON-prepend and CSV-append strategies. The sidecar `.meta` timestamp mechanism works identically.
+- **`append()` handles `.ndjson`**: The generic `FileHandler::append` method now recognises the `.ndjson` extension alongside `.json` and `.csv`
+
 ## [3.3.0] - 2026-03-16
 
 ### Added

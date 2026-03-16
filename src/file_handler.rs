@@ -3,7 +3,7 @@ use csv::Writer;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{Result, prelude::*};
+use std::io::{BufRead, BufReader, Result, Write as _};
 
 #[cfg(feature = "sqlite")]
 use rusqlite::Connection as SqliteConnection;
@@ -19,6 +19,8 @@ pub enum FileFormat {
     Json,
     /// Save as CSV format with headers
     Csv,
+    /// Save as NDJSON (Newline Delimited JSON) - one compact JSON object per line
+    Ndjson,
 }
 
 /// Handler for file I/O operations (JSON and CSV)
@@ -61,6 +63,7 @@ impl FileHandler {
             match format {
                 FileFormat::Json => "json",
                 FileFormat::Csv => "csv",
+                FileFormat::Ndjson => "ndjson",
             }
         );
 
@@ -77,6 +80,7 @@ impl FileHandler {
                 Self::save_as_json(data, &filename)
             }
             FileFormat::Csv => Self::save_as_csv(data, &filename),
+            FileFormat::Ndjson => Self::save_as_ndjson(data, &filename),
         }?;
 
         Ok(filename)
@@ -113,6 +117,78 @@ impl FileHandler {
         Ok(())
     }
 
+    /// Save data to an NDJSON file - one compact JSON object per line.
+    ///
+    /// # Arguments
+    /// * `data` - Data to save
+    /// * `filename` - Filename to save as
+    fn save_as_ndjson<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
+        let mut file = File::create(filename)?;
+        for item in data {
+            let line = serde_json::to_string(item)?;
+            file.write_all(line.as_bytes())?;
+            file.write_all(b"\n")?;
+        }
+        Ok(())
+    }
+
+    /// Append items to an existing NDJSON file as new lines.
+    ///
+    /// # Arguments
+    /// * `data` - Data to append
+    /// * `file_path` - Path to the target file
+    fn append_ndjson_lines<T: Serialize>(data: &[T], file_path: &str) -> Result<()> {
+        let mut file = OpenOptions::new().append(true).open(file_path)?;
+        for item in data {
+            let line = serde_json::to_string(item)?;
+            file.write_all(line.as_bytes())?;
+            file.write_all(b"\n")?;
+        }
+        Ok(())
+    }
+
+    /// Load existing NDJSON data from a file - one item per line.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the NDJSON file to read
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be opened
+    /// * `serde_json::Error` - If a line cannot be deserialized into `T`
+    pub fn load_ndjson<T: serde::de::DeserializeOwned>(file_path: &str) -> Result<Vec<T>> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        let mut items = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if line.is_empty() {
+                continue;
+            }
+            let item: T = serde_json::from_str(&line)?;
+            items.push(item);
+        }
+        Ok(items)
+    }
+
+    /// Append new items to an existing NDJSON file, or create it if it does not exist.
+    ///
+    /// # Arguments
+    /// * `new_data` - New items to append
+    /// * `file_path` - Path to the target NDJSON file
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be opened or written
+    pub fn append_or_create_ndjson<T: Serialize>(new_data: &[T], file_path: &str) -> Result<()> {
+        if std::path::Path::new(file_path).exists() {
+            Self::append_ndjson_lines(new_data, file_path)
+        } else {
+            if let Some(parent) = std::path::Path::new(file_path).parent() {
+                fs::create_dir_all(parent)?;
+            }
+            Self::save_as_ndjson(new_data, file_path)
+        }
+    }
+
     /// Append data to an existing file.
     ///
     /// # Arguments
@@ -139,21 +215,21 @@ impl FileHandler {
         file_path: &str,
     ) -> Result<String> {
         // Determine file format from extension
-        let format = if std::path::Path::new(file_path)
+        let ext = std::path::Path::new(file_path)
             .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
-        {
-            FileFormat::Json
-        } else if std::path::Path::new(file_path)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("csv"))
-        {
-            FileFormat::Csv
-        } else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "Unsupported file format",
-            ));
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+
+        let format = match ext.as_deref() {
+            Some("json") => FileFormat::Json,
+            Some("csv") => FileFormat::Csv,
+            Some("ndjson") => FileFormat::Ndjson,
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Unsupported file format",
+                ));
+            }
         };
 
         match format {
@@ -175,6 +251,9 @@ impl FileHandler {
                     writer.serialize(item)?;
                 }
                 writer.flush()?;
+            }
+            FileFormat::Ndjson => {
+                Self::append_ndjson_lines(data, file_path)?;
             }
         }
 
