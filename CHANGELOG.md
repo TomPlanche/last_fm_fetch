@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-03-16
+
+### Added
+
+- **SQLite export** (optional feature `sqlite`): Enable with `lastfm-client = { version = "3.3", features = ["sqlite"] }` in `Cargo.toml`
+- **`SqliteExportable` trait** (`src/sqlite.rs`): Implemented for `RecentTrack`, `LovedTrack`, `TopTrack`, `TopArtist`, and `TopAlbum`; each declares its table schema and row-binding logic
+- **`FileHandler::save_sqlite`**: Creates a timestamped `.db` file under `data/` and bulk-inserts all rows in a single transaction
+- **`FileHandler::append_or_create_sqlite`**: Opens an existing database or creates a new one, creates the table if absent, and inserts rows; used by the incremental update flow
+- **`FileHandler::read_sqlite_max_timestamp`**: Queries `MAX(date_uts)` from a table to determine the latest stored timestamp without loading all data
+- **`fetch_and_save_sqlite(prefix)`** on all five API builders (`RecentTracksRequestBuilder`, `LovedTracksRequestBuilder`, `TopTracksRequestBuilder`, `TopArtistsRequestBuilder`, `TopAlbumsRequestBuilder`)
+- **`fetch_and_update_sqlite(db_path)`** on `RecentTracksRequestBuilder` and `LovedTracksRequestBuilder`: reads `MAX(date_uts)` directly from the database (no sidecar file needed) and inserts only new rows
+
+### SQLite schema
+
+| Type | Table | Key columns |
+|------|-------|-------------|
+| `RecentTrack` | `recent_tracks` | `id PK`, `name`, `artist`, `album`, `date_uts` (nullable for now-playing), `loved` |
+| `LovedTrack` | `loved_tracks` | `id PK`, `name`, `artist`, `date_uts` |
+| `TopTrack` | `top_tracks` | `id PK`, `name`, `artist`, `playcount`, `rank` |
+| `TopArtist` | `top_artists` | `id PK`, `name`, `playcount`, `rank` |
+| `TopAlbum` | `top_albums` | `id PK`, `name`, `artist`, `playcount`, `rank` |
+
 ## [3.2.0] - 2026-03-16
 
 ### Added

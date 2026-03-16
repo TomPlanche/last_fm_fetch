@@ -26,6 +26,11 @@ pub mod file_handler;
 #[path = "url_builder.rs"]
 pub mod url_builder;
 
+/// SQLite export support (requires `sqlite` feature)
+#[cfg(feature = "sqlite")]
+#[path = "sqlite.rs"]
+pub mod sqlite;
+
 // Public API re-exports
 pub use client::LastFmClient;
 pub use config::{Config, ConfigBuilder, RateLimit};
@@ -37,6 +42,10 @@ pub use api::{
     LovedTracksClient, LovedTracksRequestBuilder, ProgressCallback, RecentTracksClient,
     RecentTracksRequestBuilder, TopTracksClient, TopTracksRequestBuilder,
 };
+
+// Re-export SQLite trait when feature is enabled
+#[cfg(feature = "sqlite")]
+pub use sqlite::SqliteExportable;
 
 // Re-export commonly used types
 pub use types::{

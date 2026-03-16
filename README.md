@@ -2,6 +2,10 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v3.3
+
+- **SQLite export** (`sqlite` feature): `fetch_and_save_sqlite` and `fetch_and_update_sqlite` on all resource builders — see [SQLite Export](#sqlite-export-optional-feature)
+
 ## What's new in v3.0
 
 - **Breaking**: Removed the deprecated `lastfm_handler` module (`LastFMHandler` and all v1.x methods)
@@ -17,7 +21,18 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.2"
+lastfm-client = "3.3"
+```
+
+### Optional Features
+
+| Feature | Description |
+|---------|-------------|
+| `sqlite` | SQLite export via `rusqlite` (bundled SQLite, no system dependency required) |
+
+```toml
+[dependencies]
+lastfm-client = { version = "3.3", features = ["sqlite"] }
 ```
 
 ## Features
@@ -41,10 +56,11 @@ lastfm-client = "3.2"
 - **Custom Analysis**: Extensible analysis framework with the `TrackAnalyzable` trait
 
 ### Data Export
-- **Multiple Formats**: Export data in JSON and CSV formats
+- **Multiple Formats**: Export data in JSON, CSV, and SQLite formats
 - **Timestamp-based Filenames**: Automatic file naming with timestamps
 - **Organized Storage**: Structured data directory management
 - **Incremental Updates**: `fetch_and_update` writes only new entries to an existing file (prepend for JSON, append for CSV); a sidecar metadata file keeps repeated calls fast regardless of file size
+- **SQLite Export** (`sqlite` feature): Export to a queryable `.db` file; incremental updates use `MAX(date_uts)` directly from the database with no sidecar needed
 
 ## Configuration
 
@@ -190,7 +206,47 @@ let new_count = client
     .recent_tracks("username")
     .fetch_extended_and_update("data/scrobbles_extended.json")
     .await?;
+
+// SQLite export (requires `sqlite` feature)
+let db_path = client
+    .recent_tracks("username")
+    .unlimited()
+    .fetch_and_save_sqlite("recent_tracks")
+    .await?;
+println!("Saved to {db_path}");
+
+// SQLite incremental update — reads MAX(date_uts) from the DB, no sidecar file needed
+let new_count = client
+    .recent_tracks("username")
+    .fetch_and_update_sqlite("data/scrobbles.db")
+    .await?;
+println!("{new_count} new scrobbles inserted");
 ```
+
+### SQLite Export (optional feature)
+
+Enable the `sqlite` feature in `Cargo.toml`:
+
+```toml
+lastfm-client = { version = "3.3", features = ["sqlite"] }
+```
+
+All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. The databases can be queried with any SQLite tool:
+
+```bash
+sqlite3 data/recent_tracks_20240101_120000.db \
+  "SELECT artist, COUNT(*) AS plays FROM recent_tracks GROUP BY artist ORDER BY plays DESC LIMIT 10"
+```
+
+Schema overview:
+
+| Resource | Table | Notable columns |
+|----------|-------|-----------------|
+| `RecentTrack` | `recent_tracks` | `name`, `artist`, `album`, `date_uts` (NULL when now-playing) |
+| `LovedTrack` | `loved_tracks` | `name`, `artist`, `date_uts` |
+| `TopTrack` | `top_tracks` | `name`, `artist`, `playcount`, `rank` |
+| `TopArtist` | `top_artists` | `name`, `playcount`, `rank` |
+| `TopAlbum` | `top_albums` | `name`, `artist`, `playcount`, `rank` |
 
 ### Progress Tracking
 
@@ -414,6 +470,9 @@ client.recent_tracks("username")
     .fetch_extended_and_save(format, prefix) // Fetch extended and save
     .fetch_and_update(file_path) // Fetch only new tracks and prepend to file -> usize
     .fetch_extended_and_update(file_path) // Same for extended tracks -> usize
+    // sqlite feature only:
+    .fetch_and_save_sqlite(prefix)        // Fetch and save to a new .db file -> String
+    .fetch_and_update_sqlite(db_path)     // Fetch only new tracks and insert into .db -> usize
 ```
 
 ### Loved Tracks
@@ -427,6 +486,9 @@ client.loved_tracks("username")
     .analyze_and_print(usize) // Analyze and print statistics
     .fetch_and_save(format, prefix) // Fetch and save to a new timestamped file
     .fetch_and_update(file_path) // Fetch only new tracks and prepend to file -> usize
+    // sqlite feature only:
+    .fetch_and_save_sqlite(prefix)        // Fetch and save to a new .db file -> String
+    .fetch_and_update_sqlite(db_path)     // Fetch only new tracks and insert into .db -> usize
 ```
 
 ### Top Tracks
@@ -437,7 +499,8 @@ client.top_tracks("username")
     .unlimited()             // Fetch all available tracks
     .period(Period)          // Time period filter
     .fetch()                 // Execute and get Vec<TopTrack>
-    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_and_save(format, prefix)    // Fetch and save to file
+    .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
 
 ### Top Artists
@@ -448,7 +511,8 @@ client.top_artists("username")
     .unlimited()             // Fetch all available artists
     .period(Period)          // Time period filter
     .fetch()                 // Execute and get Vec<TopArtist>
-    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_and_save(format, prefix)    // Fetch and save to file
+    .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
 
 ### Top Albums
@@ -459,7 +523,8 @@ client.top_albums("username")
     .unlimited()             // Fetch all available albums
     .period(Period)          // Time period filter
     .fetch()                 // Execute and get Vec<TopAlbum>
-    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_and_save(format, prefix)    // Fetch and save to file
+    .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
 
 ### Available Period Options
@@ -566,7 +631,8 @@ src/
 ├── config.rs                # Configuration with builder
 ├── error.rs                 # Rich error types with retry hints
 ├── analytics.rs             # TrackAnalyzable trait + AnalysisHandler
-└── file_handler.rs          # JSON/CSV export
+├── file_handler.rs          # JSON/CSV/SQLite export
+└── sqlite.rs                # SqliteExportable trait (sqlite feature only)
 ```
 
 ### Key Design Principles

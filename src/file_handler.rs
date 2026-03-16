@@ -5,6 +5,9 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Result, prelude::*};
 
+#[cfg(feature = "sqlite")]
+use rusqlite::Connection as SqliteConnection;
+
 use crate::types::TrackPlayInfo;
 
 /// File format options for saving track data
@@ -262,6 +265,131 @@ impl FileHandler {
             Self::save_as_csv(new_data, file_path)?;
         }
         Ok(())
+    }
+
+    /// Save data to a new `SQLite` database file.
+    ///
+    /// Creates a timestamped `.db` file under `data/`. All rows are inserted in a single
+    /// transaction for performance.
+    ///
+    /// # Arguments
+    /// * `data` - Data to save (must implement `SqliteExportable`)
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the data directory cannot be created or the database cannot be opened or written
+    ///
+    /// # Returns
+    /// * `Result<String>` - Full path to the saved database file (e.g., `data/recent_tracks_20240101_120000.db`)
+    #[cfg(feature = "sqlite")]
+    pub fn save_sqlite<T: crate::sqlite::SqliteExportable>(
+        data: &[T],
+        filename_prefix: &str,
+    ) -> Result<String> {
+        fs::create_dir_all("data")?;
+        let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+        let filename = format!("data/{filename_prefix}_{timestamp}.db");
+
+        let mut conn =
+            SqliteConnection::open(&filename).map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        conn.execute_batch(T::create_table_sql())
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        {
+            let mut stmt = tx
+                .prepare(T::insert_sql())
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+            for item in data {
+                item.bind_and_execute(&mut stmt)
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
+            }
+        }
+
+        tx.commit()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        Ok(filename)
+    }
+
+    /// Append new items to an existing `SQLite` database, or create it if it does not exist.
+    ///
+    /// Opens the database at `file_path`, creates the table if it does not already exist,
+    /// and inserts all rows in a single transaction.
+    ///
+    /// # Arguments
+    /// * `data` - Data to insert
+    /// * `file_path` - Path to the target `.db` file
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be opened or the data cannot be written
+    #[cfg(feature = "sqlite")]
+    pub fn append_or_create_sqlite<T: crate::sqlite::SqliteExportable>(
+        data: &[T],
+        file_path: &str,
+    ) -> Result<()> {
+        if let Some(parent) = std::path::Path::new(file_path).parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent)?;
+        }
+
+        let mut conn =
+            SqliteConnection::open(file_path).map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        conn.execute_batch(T::create_table_sql())
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        {
+            let mut stmt = tx
+                .prepare(T::insert_sql())
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+            for item in data {
+                item.bind_and_execute(&mut stmt)
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
+            }
+        }
+
+        tx.commit()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Query the maximum `date_uts` value stored in a `SQLite` table.
+    ///
+    /// Used by the update flow to determine the latest timestamp already present in the
+    /// database, so only newer records need to be fetched from the API.
+    ///
+    /// Returns `None` if the file does not exist, the table is empty, or the query fails.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the `.db` file
+    /// * `table_name` - Name of the table to query
+    #[cfg(feature = "sqlite")]
+    #[must_use]
+    pub fn read_sqlite_max_timestamp(file_path: &str, table_name: &str) -> Option<u32> {
+        if !std::path::Path::new(file_path).exists() {
+            return None;
+        }
+        let conn = SqliteConnection::open(file_path).ok()?;
+        conn.query_row(
+            &format!("SELECT MAX(date_uts) FROM {table_name}"),
+            [],
+            |row| row.get::<_, Option<u32>>(0),
+        )
+        .ok()
+        .flatten()
     }
 
     /// Prepend new items to an existing JSON file, or create the file if it does not exist.
