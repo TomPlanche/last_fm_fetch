@@ -40,6 +40,42 @@ impl fmt::Display for TopArtist {
     }
 }
 
+// SQLITE EXPORT ==============================================================
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteExportable for TopArtist {
+    fn table_name() -> &'static str {
+        "top_artists"
+    }
+
+    fn create_table_sql() -> &'static str {
+        "CREATE TABLE IF NOT EXISTS top_artists (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            name      TEXT    NOT NULL,
+            mbid      TEXT    NOT NULL,
+            url       TEXT    NOT NULL,
+            playcount INTEGER NOT NULL,
+            rank      INTEGER NOT NULL
+        )"
+    }
+
+    fn insert_sql() -> &'static str {
+        "INSERT INTO top_artists (name, mbid, url, playcount, rank)
+         VALUES (?1, ?2, ?3, ?4, ?5)"
+    }
+
+    fn bind_and_execute(&self, stmt: &mut rusqlite::Statement<'_>) -> rusqlite::Result<usize> {
+        let rank: u32 = self.attr.rank.parse().unwrap_or_default();
+        stmt.execute(rusqlite::params![
+            self.name,
+            self.mbid,
+            self.url,
+            self.playcount,
+            rank,
+        ])
+    }
+}
+
 /// Top artists response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]

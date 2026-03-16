@@ -134,6 +134,24 @@ impl TopAlbumsRequestBuilder {
         Ok(filename)
     }
 
+    /// Fetch albums and save them to a new `SQLite` database file.
+    ///
+    /// # Arguments
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be saved.
+    ///
+    /// # Returns
+    /// * `Result<String>` - Path to the saved database file
+    #[cfg(feature = "sqlite")]
+    pub async fn fetch_and_save_sqlite(self, filename_prefix: &str) -> Result<String> {
+        let albums = self.fetch().await?;
+        tracing::info!("Saving {} top albums to SQLite", albums.len());
+        crate::file_handler::FileHandler::save_sqlite(&albums, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)
+    }
+
     async fn fetch_albums<T>(
         &self,
         limit: TrackLimit,

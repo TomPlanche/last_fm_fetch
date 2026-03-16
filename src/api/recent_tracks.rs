@@ -353,6 +353,65 @@ impl RecentTracksRequestBuilder {
         Ok(count)
     }
 
+    /// Fetch tracks and save them to a new `SQLite` database file.
+    ///
+    /// # Arguments
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be saved.
+    ///
+    /// # Returns
+    /// * `Result<String>` - Path to the saved database file
+    #[cfg(feature = "sqlite")]
+    pub async fn fetch_and_save_sqlite(
+        self,
+        filename_prefix: &str,
+    ) -> crate::error::Result<String> {
+        let tracks = self.fetch().await?;
+        tracing::info!("Saving {} recent tracks to SQLite", tracks.len());
+        crate::file_handler::FileHandler::save_sqlite(&tracks, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)
+    }
+
+    /// Fetch only tracks newer than the most recent entry in an existing `SQLite` database and
+    /// append them to it. If the database file does not exist, all tracks are fetched and
+    /// the database is created.
+    ///
+    /// The latest timestamp is determined by querying `MAX(date_uts)` directly from the
+    /// database — no sidecar file is needed.
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to the `SQLite` database file to update (or create)
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be written.
+    ///
+    /// # Returns
+    /// * `Result<usize>` - Number of new tracks inserted
+    #[cfg(feature = "sqlite")]
+    pub async fn fetch_and_update_sqlite(self, db_path: &str) -> crate::error::Result<usize> {
+        let since_timestamp = crate::file_handler::FileHandler::read_sqlite_max_timestamp(
+            db_path,
+            <RecentTrack as crate::sqlite::SqliteExportable>::table_name(),
+        );
+
+        let builder = match since_timestamp {
+            Some(ts) => self.since(i64::from(ts) + 1),
+            None => self,
+        };
+
+        let new_tracks = builder.fetch().await?;
+        let count = new_tracks.len();
+
+        if !new_tracks.is_empty() {
+            crate::file_handler::FileHandler::append_or_create_sqlite(&new_tracks, db_path)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
+
+        Ok(count)
+    }
+
     /// Analyze tracks and return statistics
     ///
     /// # Arguments

@@ -120,6 +120,69 @@ impl LovedTracksRequestBuilder {
         Ok(filename)
     }
 
+    /// Fetch tracks and save them to a new `SQLite` database file.
+    ///
+    /// # Arguments
+    /// * `filename_prefix` - Prefix for the generated filename
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be saved.
+    ///
+    /// # Returns
+    /// * `Result<String>` - Path to the saved database file
+    #[cfg(feature = "sqlite")]
+    pub async fn fetch_and_save_sqlite(
+        self,
+        filename_prefix: &str,
+    ) -> crate::error::Result<String> {
+        let tracks = self.fetch().await?;
+        tracing::info!("Saving {} loved tracks to SQLite", tracks.len());
+        crate::file_handler::FileHandler::save_sqlite(&tracks, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)
+    }
+
+    /// Fetch only tracks newer than the most recent entry in an existing `SQLite` database and
+    /// append them to it. If the database file does not exist, all tracks are fetched and
+    /// the database is created.
+    ///
+    /// Because the loved tracks API does not support a `from` timestamp filter, all tracks
+    /// are fetched and those already present (by `date_uts`) are filtered out before inserting.
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to the `SQLite` database file to update (or create)
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be written.
+    ///
+    /// # Returns
+    /// * `Result<usize>` - Number of new tracks inserted
+    #[cfg(feature = "sqlite")]
+    pub async fn fetch_and_update_sqlite(self, db_path: &str) -> crate::error::Result<usize> {
+        let max_existing_ts = crate::file_handler::FileHandler::read_sqlite_max_timestamp(
+            db_path,
+            <LovedTrack as crate::sqlite::SqliteExportable>::table_name(),
+        );
+
+        let all_tracks = self.fetch().await?;
+
+        let new_tracks: Vec<LovedTrack> = match max_existing_ts {
+            Some(max_ts) => all_tracks
+                .into_iter()
+                .filter(|t| t.date.uts > max_ts)
+                .collect(),
+            None => all_tracks,
+        };
+
+        let count = new_tracks.len();
+
+        if !new_tracks.is_empty() {
+            crate::file_handler::FileHandler::append_or_create_sqlite(&new_tracks, db_path)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
+
+        Ok(count)
+    }
+
     /// Fetch only tracks newer than the most recent entry in an existing JSON file and prepend
     /// them to it. If the file does not exist, all tracks are fetched and the file is created.
     ///

@@ -430,6 +430,116 @@ impl Timestamped for RecentTrackExtended {
     }
 }
 
+// SQLITE EXPORT ==============================================================
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteExportable for RecentTrack {
+    fn table_name() -> &'static str {
+        "recent_tracks"
+    }
+
+    fn create_table_sql() -> &'static str {
+        "CREATE TABLE IF NOT EXISTS recent_tracks (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT    NOT NULL,
+            url        TEXT    NOT NULL,
+            artist     TEXT    NOT NULL,
+            artist_mbid TEXT   NOT NULL,
+            album      TEXT    NOT NULL,
+            album_mbid TEXT    NOT NULL,
+            date_uts   INTEGER,
+            loved      INTEGER NOT NULL DEFAULT 0
+        )"
+    }
+
+    fn insert_sql() -> &'static str {
+        "INSERT INTO recent_tracks (name, url, artist, artist_mbid, album, album_mbid, date_uts, loved)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+    }
+
+    fn bind_and_execute(&self, stmt: &mut rusqlite::Statement<'_>) -> rusqlite::Result<usize> {
+        stmt.execute(rusqlite::params![
+            self.name,
+            self.url,
+            self.artist.text,
+            self.artist.mbid,
+            self.album.text,
+            self.album.mbid,
+            self.date.as_ref().map(|d| d.uts),
+            0_i32,
+        ])
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteExportable for LovedTrack {
+    fn table_name() -> &'static str {
+        "loved_tracks"
+    }
+
+    fn create_table_sql() -> &'static str {
+        "CREATE TABLE IF NOT EXISTS loved_tracks (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT    NOT NULL,
+            url         TEXT    NOT NULL,
+            artist      TEXT    NOT NULL,
+            artist_mbid TEXT    NOT NULL,
+            date_uts    INTEGER NOT NULL
+        )"
+    }
+
+    fn insert_sql() -> &'static str {
+        "INSERT INTO loved_tracks (name, url, artist, artist_mbid, date_uts)
+         VALUES (?1, ?2, ?3, ?4, ?5)"
+    }
+
+    fn bind_and_execute(&self, stmt: &mut rusqlite::Statement<'_>) -> rusqlite::Result<usize> {
+        stmt.execute(rusqlite::params![
+            self.name,
+            self.url,
+            self.artist.name,
+            self.artist.mbid,
+            self.date.uts,
+        ])
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteExportable for TopTrack {
+    fn table_name() -> &'static str {
+        "top_tracks"
+    }
+
+    fn create_table_sql() -> &'static str {
+        "CREATE TABLE IF NOT EXISTS top_tracks (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            name      TEXT    NOT NULL,
+            url       TEXT    NOT NULL,
+            artist    TEXT    NOT NULL,
+            mbid      TEXT    NOT NULL,
+            playcount INTEGER NOT NULL,
+            rank      INTEGER NOT NULL
+        )"
+    }
+
+    fn insert_sql() -> &'static str {
+        "INSERT INTO top_tracks (name, url, artist, mbid, playcount, rank)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+    }
+
+    fn bind_and_execute(&self, stmt: &mut rusqlite::Statement<'_>) -> rusqlite::Result<usize> {
+        let rank: u32 = self.attr.rank.parse().unwrap_or_default();
+        stmt.execute(rusqlite::params![
+            self.name,
+            self.url,
+            self.artist.name,
+            self.mbid,
+            self.playcount,
+            rank,
+        ])
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

@@ -1,12 +1,15 @@
 [package]
 name = "lastfm-client"
-version = "3.2.0"
+version = "3.3.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
 repository = "https://github.com/TomPlanche/lastfm-client"
 keywords = ["lastfm", "api", "async", "music", "scrobble"]
 categories = ["api-bindings", "web-programming"]
+
+[features]
+sqlite = ["dep:rusqlite"]
 
 [dependencies]
 async-trait = "0.1"
@@ -16,6 +19,7 @@ dotenv = "0.15.0"
 futures = "0.3.31"
 parking_lot = "0.12"
 reqwest = { version = "0.12.28", features = ["json"] }
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "1.0"
