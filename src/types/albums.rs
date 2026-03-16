@@ -9,6 +9,7 @@ use crate::types::utils::u32_from_str;
 ///
 /// Retrieved from the `user.gettopalbums` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopAlbum {
     /// Album name
     pub name: String,
@@ -38,14 +39,21 @@ impl fmt::Display for TopAlbum {
     }
 }
 
+/// Top albums response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopAlbums {
+    /// List of top albums
     pub album: Vec<TopAlbum>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level top albums API response
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct UserTopAlbums {
+    /// Top albums data
     pub topalbums: TopAlbums,
 }

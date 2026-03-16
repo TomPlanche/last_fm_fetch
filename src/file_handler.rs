@@ -10,6 +10,7 @@ use crate::types::TrackPlayInfo;
 /// File format options for saving track data
 #[derive(Debug)]
 #[allow(dead_code)]
+#[non_exhaustive]
 pub enum FileFormat {
     /// Save as JSON format with pretty printing
     Json,
@@ -17,7 +18,9 @@ pub enum FileFormat {
     Csv,
 }
 
+/// Handler for file I/O operations (JSON and CSV)
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct FileHandler;
 
 impl FileHandler {
@@ -189,5 +192,106 @@ impl FileHandler {
         let mut file = File::create(filename)?;
         file.write_all(json.as_bytes())?;
         Ok(())
+    }
+
+    /// Load existing JSON data from a file.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the JSON file to read
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be opened
+    /// * `serde_json::Error` - If the JSON cannot be deserialized into `Vec<T>`
+    pub fn load<T: serde::de::DeserializeOwned>(file_path: &str) -> Result<Vec<T>> {
+        let file = File::open(file_path)?;
+        let data: Vec<T> = serde_json::from_reader(file)?;
+        Ok(data)
+    }
+
+    /// Return the path of the sidecar metadata file for `file_path`.
+    ///
+    /// The sidecar stores the latest known Unix timestamp so subsequent update calls do not
+    /// need to deserialize the full data file.
+    #[must_use]
+    pub fn sidecar_path(file_path: &str) -> String {
+        format!("{file_path}.meta")
+    }
+
+    /// Read the latest timestamp from a sidecar metadata file.
+    ///
+    /// Returns `None` if the sidecar does not exist or cannot be parsed.
+    #[must_use]
+    pub fn read_sidecar_timestamp(file_path: &str) -> Option<u32> {
+        fs::read_to_string(Self::sidecar_path(file_path))
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+    }
+
+    /// Write a timestamp to the sidecar metadata file associated with `file_path`.
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the sidecar file cannot be written
+    pub fn write_sidecar_timestamp(file_path: &str, timestamp: u32) -> Result<()> {
+        fs::write(Self::sidecar_path(file_path), timestamp.to_string())
+    }
+
+    /// Append new items to an existing CSV file, or create it with headers if it does not exist.
+    ///
+    /// When appending to an existing file the header row is omitted so it is not duplicated.
+    ///
+    /// # Arguments
+    /// * `new_data` - New items to append
+    /// * `file_path` - Path to the target CSV file
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be opened or written
+    /// * `csv::Error` - If serialization fails
+    pub fn append_or_create_csv<T: Serialize>(new_data: &[T], file_path: &str) -> Result<()> {
+        if std::path::Path::new(file_path).exists() {
+            let mut writer = csv::WriterBuilder::new()
+                .has_headers(false)
+                .from_writer(OpenOptions::new().append(true).open(file_path)?);
+            for item in new_data {
+                writer.serialize(item)?;
+            }
+            writer.flush()?;
+        } else {
+            if let Some(parent) = std::path::Path::new(file_path).parent() {
+                fs::create_dir_all(parent)?;
+            }
+            Self::save_as_csv(new_data, file_path)?;
+        }
+        Ok(())
+    }
+
+    /// Prepend new items to an existing JSON file, or create the file if it does not exist.
+    ///
+    /// New items are placed before existing items so the result remains sorted newest-first,
+    /// which matches the order returned by the Last.fm API.
+    ///
+    /// # Arguments
+    /// * `new_data` - New items to prepend
+    /// * `file_path` - Path to the target JSON file
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the file cannot be read or written
+    /// * `serde_json::Error` - If serialization or deserialization fails
+    pub fn prepend_json<T: Serialize + serde::de::DeserializeOwned + Clone>(
+        new_data: &[T],
+        file_path: &str,
+    ) -> Result<()> {
+        let existing: Vec<T> = if std::path::Path::new(file_path).exists() {
+            Self::load(file_path)?
+        } else {
+            // Ensure the parent directory exists before creating the file
+            if let Some(parent) = std::path::Path::new(file_path).parent() {
+                fs::create_dir_all(parent)?;
+            }
+            vec![]
+        };
+
+        let mut combined = new_data.to_vec();
+        combined.extend(existing);
+        Self::save_as_json(&combined, file_path)
     }
 }

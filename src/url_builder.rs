@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+/// Query parameter map for URL construction
 pub type QueryParams = HashMap<String, String>;
 
+/// URL builder for constructing API request URLs
 #[derive(Debug, Clone)]
 pub struct Url {
     base: String,
@@ -9,6 +11,7 @@ pub struct Url {
 }
 
 impl Url {
+    /// Create a new URL builder with the given base URL
     #[must_use]
     pub fn new(base: &str) -> Self {
         Self {
@@ -17,6 +20,7 @@ impl Url {
         }
     }
 
+    /// Add query parameters to the URL
     #[must_use]
     pub fn add_args(mut self, args: QueryParams) -> Self {
         self.query_params.extend(args);
@@ -24,6 +28,7 @@ impl Url {
         self
     }
 
+    /// Build the final URL string with all query parameters
     #[must_use]
     pub fn build(&self) -> String {
         if self.query_params.is_empty() {

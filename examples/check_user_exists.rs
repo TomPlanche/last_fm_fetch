@@ -1,3 +1,5 @@
+//! Demonstrates user existence validation.
+
 use lastfm_client::LastFmClient;
 
 /// Example demonstrating user existence validation

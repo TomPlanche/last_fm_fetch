@@ -3,7 +3,7 @@ use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{LovedTrack, TrackLimit, UserLovedTracks};
+use crate::types::{LovedTrack, Timestamped, TrackLimit, UserLovedTracks};
 
 use serde::de::DeserializeOwned;
 use std::fmt;
@@ -26,6 +26,7 @@ impl fmt::Debug for LovedTracksClient {
 }
 
 impl LovedTracksClient {
+    /// Create a new loved tracks client
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }
@@ -109,7 +110,81 @@ impl LovedTracksRequestBuilder {
         tracing::info!("Saving {} loved tracks to file", tracks.len());
         let filename = FileHandler::save(&tracks, &format, filename_prefix)
             .map_err(crate::error::LastFmError::Io)?;
+        if let Some(latest_ts) = tracks
+            .first()
+            .and_then(crate::types::Timestamped::get_timestamp)
+        {
+            FileHandler::write_sidecar_timestamp(&filename, latest_ts)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
         Ok(filename)
+    }
+
+    /// Fetch only tracks newer than the most recent entry in an existing JSON file and prepend
+    /// them to it. If the file does not exist, all tracks are fetched and the file is created.
+    ///
+    /// Unlike `recent_tracks`, the loved tracks API does not support a `from` timestamp filter,
+    /// so all tracks are fetched and those already present (by timestamp) are filtered out.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the JSON file to update (or create)
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the file
+    /// cannot be read or written.
+    ///
+    /// # Returns
+    /// * `Result<usize>` - Number of new tracks prepended
+    pub async fn fetch_and_update(self, file_path: &str) -> Result<usize> {
+        let is_csv = std::path::Path::new(file_path)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+
+        let max_existing_ts = if let Some(ts) = FileHandler::read_sidecar_timestamp(file_path) {
+            Some(ts)
+        } else if !is_csv && std::path::Path::new(file_path).exists() {
+            let existing: Vec<LovedTrack> =
+                FileHandler::load(file_path).map_err(crate::error::LastFmError::Io)?;
+            let ts = existing.iter().filter_map(Timestamped::get_timestamp).max();
+            if let Some(t) = ts {
+                FileHandler::write_sidecar_timestamp(file_path, t)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+            ts
+        } else {
+            None
+        };
+
+        let all_tracks = self.fetch().await?;
+
+        let new_tracks: Vec<LovedTrack> = match max_existing_ts {
+            Some(max_ts) => all_tracks
+                .into_iter()
+                .filter(|t| t.get_timestamp().is_some_and(|ts| ts > max_ts))
+                .collect(),
+            None => all_tracks,
+        };
+
+        let count = new_tracks.len();
+
+        if !new_tracks.is_empty() {
+            if let Some(latest_ts) = new_tracks
+                .first()
+                .and_then(crate::types::Timestamped::get_timestamp)
+            {
+                FileHandler::write_sidecar_timestamp(file_path, latest_ts)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+            if is_csv {
+                FileHandler::append_or_create_csv(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            } else {
+                FileHandler::prepend_json(&new_tracks, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            }
+        }
+
+        Ok(count)
     }
 
     /// Analyze tracks and return statistics

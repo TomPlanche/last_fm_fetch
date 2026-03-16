@@ -4,8 +4,11 @@ use std::time::Duration;
 
 /// Rate limiting configuration
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RateLimit {
+    /// Maximum number of requests allowed in the time window
     pub max_requests: u32,
+    /// Time window for the rate limit
     pub per_duration: Duration,
 }
 

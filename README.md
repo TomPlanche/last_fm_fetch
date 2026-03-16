@@ -2,13 +2,6 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
-**Version 3.1** adds a progress callback API for long-running fetches. **Version 3.0** removed the deprecated v1.x legacy API (`LastFMHandler`) and focuses entirely on the builder-pattern API with retry logic, rate limiting, and improved ergonomics.
-
-## What's new in v3.1
-
-- **Progress callbacks**: Track fetch progress in real time via `.on_progress(|fetched, total| { ... })` on `RecentTracksRequestBuilder`
-- **`ProgressCallback` type**: Public type alias `Arc<dyn Fn(u32, u32) + Send + Sync>` exported from the crate root
-
 ## What's new in v3.0
 
 - **Breaking**: Removed the deprecated `lastfm_handler` module (`LastFMHandler` and all v1.x methods)
@@ -24,7 +17,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.1"
+lastfm-client = "3.2"
 ```
 
 ## Features
@@ -51,6 +44,7 @@ lastfm-client = "3.1"
 - **Multiple Formats**: Export data in JSON and CSV formats
 - **Timestamp-based Filenames**: Automatic file naming with timestamps
 - **Organized Storage**: Structured data directory management
+- **Incremental Updates**: `fetch_and_update` writes only new entries to an existing file (prepend for JSON, append for CSV); a sidecar metadata file keeps repeated calls fast regardless of file size
 
 ## Configuration
 
@@ -171,6 +165,31 @@ let filename = client
     })
     .fetch_extended_and_save(FileFormat::Json, "all_tracks")
     .await?;
+
+// Incremental update: only fetch tracks newer than the last entry in the file.
+// On the first call the file is created with a full fetch. Subsequent calls are
+// fast because the latest timestamp is read from a small sidecar file instead
+// of deserializing the entire data file.
+let new_count = client
+    .recent_tracks("username")
+    .on_progress(|fetched, total| println!("{fetched}/{total}"))
+    .fetch_and_update("data/scrobbles.json")
+    .await?;
+println!("{new_count} new scrobbles");
+
+// Incremental update (CSV): same logic, but new rows are appended to the CSV.
+// A sidecar (data/scrobbles.csv.meta) tracks the latest timestamp.
+let new_count = client
+    .recent_tracks("username")
+    .fetch_and_update("data/scrobbles.csv")
+    .await?;
+println!("{new_count} new scrobbles");
+
+// Same for extended tracks (JSON or CSV path works)
+let new_count = client
+    .recent_tracks("username")
+    .fetch_extended_and_update("data/scrobbles_extended.json")
+    .await?;
 ```
 
 ### Progress Tracking
@@ -232,6 +251,13 @@ let filename = client
     .loved_tracks("username")
     .fetch_and_save(FileFormat::Json, "loved_tracks")
     .await?;
+
+// Incremental update for loved tracks
+let new_count = client
+    .loved_tracks("username")
+    .fetch_and_update("data/loved_tracks.json")
+    .await?;
+println!("{new_count} newly loved tracks");
 ```
 
 ### Fetching Top Tracks
@@ -384,8 +410,10 @@ client.recent_tracks("username")
     .check_currently_playing() // Check if currently playing
     .analyze(usize)          // Analyze tracks and get statistics
     .analyze_and_print(usize) // Analyze and print statistics
-    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_and_save(format, prefix) // Fetch and save to a new timestamped file
     .fetch_extended_and_save(format, prefix) // Fetch extended and save
+    .fetch_and_update(file_path) // Fetch only new tracks and prepend to file -> usize
+    .fetch_extended_and_update(file_path) // Same for extended tracks -> usize
 ```
 
 ### Loved Tracks
@@ -397,7 +425,8 @@ client.loved_tracks("username")
     .fetch()                 // Execute and get Vec<LovedTrack>
     .analyze(usize)          // Analyze tracks and get statistics
     .analyze_and_print(usize) // Analyze and print statistics
-    .fetch_and_save(format, prefix) // Fetch and save to file
+    .fetch_and_save(format, prefix) // Fetch and save to a new timestamped file
+    .fetch_and_update(file_path) // Fetch only new tracks and prepend to file -> usize
 ```
 
 ### Top Tracks

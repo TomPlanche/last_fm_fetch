@@ -11,6 +11,7 @@ use crate::types::utils::{bool_from_str, u32_from_str};
 ///
 /// Used for artist and album information in track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct BaseMbidText {
     /// `MusicBrainz` Identifier (may be empty string if not available)
     pub mbid: String,
@@ -23,6 +24,7 @@ pub struct BaseMbidText {
 ///
 /// Used for artist and album information in extended track responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct BaseObject {
     /// `MusicBrainz` Identifier (may be empty string if not available)
     pub mbid: String,
@@ -36,6 +38,7 @@ pub struct BaseObject {
 
 /// Image information for tracks and albums
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TrackImage {
     /// Image size (e.g., "small", "medium", "large", "extralarge")
     pub size: String,
@@ -46,6 +49,7 @@ pub struct TrackImage {
 
 /// Streamability information for a track
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct Streamable {
     /// Whether the full track is streamable ("0" or "1")
     pub fulltrack: String,
@@ -56,6 +60,7 @@ pub struct Streamable {
 
 /// Detailed artist information
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct Artist {
     /// Artist name
     pub name: String,
@@ -73,6 +78,7 @@ pub struct Artist {
 
 /// Date/timestamp information for tracks
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct Date {
     /// Unix timestamp in seconds (not milliseconds) since January 1, 1970 UTC
     #[serde(deserialize_with = "u32_from_str")]
@@ -86,6 +92,7 @@ pub struct Date {
 
 /// Attributes for recent tracks indicating current playback status
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct Attributes {
     /// Whether this track is currently playing ("true" or "false")
     pub nowplaying: String,
@@ -93,6 +100,7 @@ pub struct Attributes {
 
 /// Rank attributes for top tracks
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct RankAttr {
     /// Numeric rank as a string (e.g., "1", "2", "3")
     pub rank: String,
@@ -105,6 +113,7 @@ pub struct RankAttr {
 ///
 /// Retrieved from the `user.getrecenttracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct RecentTrack {
     /// Artist information
     pub artist: BaseMbidText,
@@ -152,6 +161,7 @@ impl fmt::Display for RecentTrack {
 ///
 /// Retrieved when using the `extended=1` parameter with `user.getrecenttracks`
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct RecentTrackExtended {
     /// Extended artist information (includes URL)
     pub artist: BaseObject,
@@ -203,6 +213,7 @@ impl fmt::Display for RecentTrackExtended {
 ///
 /// Retrieved from the `user.getlovedtracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct LovedTrack {
     /// Artist information with URL
     pub artist: BaseObject,
@@ -236,6 +247,7 @@ impl fmt::Display for LovedTrack {
 ///
 /// Retrieved from the `user.gettoptracks` API endpoint
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopTrack {
     /// Streamability information
     pub streamable: Streamable,
@@ -274,6 +286,7 @@ impl fmt::Display for TopTrack {
 
 /// Base response metadata included in all paginated API responses
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct BaseResponse {
     /// Username the request was made for
     pub user: String,
@@ -291,55 +304,79 @@ pub struct BaseResponse {
     pub total: u32,
 }
 
-// Recent tracks response
+/// Recent tracks response wrapper
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub struct RecentTracks {
+    /// List of recent tracks
     pub track: Vec<RecentTrack>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level recent tracks API response
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub struct UserRecentTracks {
+    /// Recent tracks data
     pub recenttracks: RecentTracks,
 }
 
-// Recent tracks extended response
+/// Recent tracks extended response wrapper
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub struct RecentTracksExtended {
+    /// List of extended recent tracks
     pub track: Vec<RecentTrackExtended>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level extended recent tracks API response
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub struct UserRecentTracksExtended {
+    /// Extended recent tracks data
     pub recenttracks: RecentTracksExtended,
 }
 
-// Loved tracks response
+/// Loved tracks response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct LovedTracks {
+    /// List of loved tracks
     pub track: Vec<LovedTrack>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level loved tracks API response
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct UserLovedTracks {
+    /// Loved tracks data
     pub lovedtracks: LovedTracks,
 }
 
-// Top tracks response
+/// Top tracks response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct TopTracks {
+    /// List of top tracks
     pub track: Vec<TopTrack>,
+    /// Response metadata
     #[serde(rename = "@attr")]
     pub attr: BaseResponse,
 }
 
+/// Top-level top tracks API response
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct UserTopTracks {
+    /// Top tracks data
     pub toptracks: TopTracks,
 }
 
@@ -347,20 +384,31 @@ pub struct UserTopTracks {
 
 /// Represents a track's play count information
 #[derive(Debug, Serialize)]
+#[non_exhaustive]
 pub struct TrackPlayInfo {
+    /// Track name
     pub name: String,
+    /// Number of times played
     pub play_count: u32,
+    /// Artist name
     pub artist: String,
+    /// Album name (if available)
     pub album: Option<String>,
+    /// Image URL (if available)
     pub image_url: Option<String>,
+    /// Whether the track is currently playing
     pub currently_playing: bool,
+    /// Unix timestamp of when played
     pub date: Option<u32>,
+    /// Last.fm URL
     pub url: String,
 }
 
 // TRAITS =====================================================================
 
+/// Trait for types that have a timestamp
 pub trait Timestamped {
+    /// Get the timestamp as a Unix epoch in seconds
     fn get_timestamp(&self) -> Option<u32>;
 }
 

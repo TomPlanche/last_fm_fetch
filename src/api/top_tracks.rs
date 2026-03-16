@@ -26,6 +26,7 @@ impl fmt::Debug for TopTracksClient {
 }
 
 impl TopTracksClient {
+    /// Create a new top tracks client
     pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
         Self { http, config }
     }

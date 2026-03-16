@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-03-16
+
+### Added
+
+- **Incremental file updates**: `RecentTracksRequestBuilder::fetch_and_update(file_path)` and `fetch_extended_and_update(file_path)` fetch only tracks newer than the most recent entry in an existing file, then write them. JSON files have new tracks prepended (newest-first); CSV files have new tracks appended. If the file does not exist it is created with a full fetch.
+- **Incremental loved tracks updates**: `LovedTracksRequestBuilder::fetch_and_update(file_path)` does the same for loved tracks. Because the loved tracks API has no `from` timestamp filter, all tracks are fetched and already-present entries are filtered out by timestamp before writing.
+- **CSV support in incremental updates**: Pass a `.csv` path to any `fetch_and_update` method to maintain a growing CSV file. New rows are appended without re-writing the whole file. The sidecar (`.meta`) is used as the timestamp source; the CSV slow-path scan is skipped because complex nested types do not round-trip through CSV reliably.
+- **`FileHandler::append_or_create_csv`**: Creates a CSV file with headers on first call; appends rows without headers on subsequent calls.
+- **Sidecar metadata file**: After each update, the latest Unix timestamp is written to `{file_path}.meta`. Subsequent calls read this tiny sidecar instead of deserializing the full data file, making repeated calls O(1) for timestamp lookup regardless of file size.
+- **`FileHandler::load`**: Public method to deserialize an existing JSON file into `Vec<T>`.
+- **`FileHandler::prepend_json`**: Prepends new items to the front of an existing JSON array file (or creates the file), preserving newest-first order.
+- **`FileHandler::sidecar_path` / `read_sidecar_timestamp` / `write_sidecar_timestamp`**: Helpers for the sidecar metadata file.
+
 ## [3.1.0] - 2026-03-16
 
 ### Added
