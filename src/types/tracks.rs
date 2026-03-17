@@ -472,6 +472,52 @@ impl crate::sqlite::SqliteExportable for RecentTrack {
 }
 
 #[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteExportable for RecentTrackExtended {
+    fn table_name() -> &'static str {
+        "recent_tracks_extended"
+    }
+
+    fn create_table_sql() -> &'static str {
+        "CREATE TABLE IF NOT EXISTS recent_tracks_extended (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT    NOT NULL,
+            url         TEXT    NOT NULL,
+            mbid        TEXT    NOT NULL,
+            artist      TEXT    NOT NULL,
+            artist_mbid TEXT    NOT NULL,
+            artist_url  TEXT    NOT NULL,
+            album       TEXT    NOT NULL,
+            album_mbid  TEXT    NOT NULL,
+            album_url   TEXT    NOT NULL,
+            date_uts    INTEGER,
+            loved       INTEGER NOT NULL DEFAULT 0
+        )"
+    }
+
+    fn insert_sql() -> &'static str {
+        "INSERT INTO recent_tracks_extended
+             (name, url, mbid, artist, artist_mbid, artist_url, album, album_mbid, album_url, date_uts, loved)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"
+    }
+
+    fn bind_and_execute(&self, stmt: &mut rusqlite::Statement<'_>) -> rusqlite::Result<usize> {
+        stmt.execute(rusqlite::params![
+            self.name,
+            self.url,
+            self.mbid,
+            self.artist.name,
+            self.artist.mbid,
+            self.artist.url,
+            self.album.name,
+            self.album.mbid,
+            self.album.url,
+            self.date.as_ref().map(|d| d.uts),
+            0_i32,
+        ])
+    }
+}
+
+#[cfg(feature = "sqlite")]
 impl crate::sqlite::SqliteExportable for LovedTrack {
     fn table_name() -> &'static str {
         "loved_tracks"

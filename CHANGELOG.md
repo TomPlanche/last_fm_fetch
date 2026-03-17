@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-03-17
+
+### Added
+
+- **`SqliteExportable` for `RecentTrackExtended`**: The extended recent track type now implements `SqliteExportable`, storing data in a `recent_tracks_extended` table. The schema includes all `recent_tracks` columns plus `mbid`, `artist_url`, and `album_url` (available from the `BaseObject` type returned by the extended API).
+- **`fetch_extended_and_save_sqlite(prefix)`** on `RecentTracksRequestBuilder`: Fetches all extended recent tracks and saves them to a new timestamped `.db` file.
+- **`fetch_extended_and_update_sqlite(db_path)`** on `RecentTracksRequestBuilder`: Reads `MAX(date_uts)` from the `recent_tracks_extended` table, fetches only newer tracks, and appends them. No sidecar file needed.
+
+### SQLite schema addition
+
+| Type | Table | Notable columns |
+|------|-------|-----------------|
+| `RecentTrackExtended` | `recent_tracks_extended` | `name`, `url`, `mbid`, `artist`, `artist_mbid`, `artist_url`, `album`, `album_mbid`, `album_url`, `date_uts` (NULL when now-playing), `loved` |
+
 ## [3.4.0] - 2026-03-16
 
 ### Added
