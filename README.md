@@ -25,7 +25,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.4"
+lastfm-client = "3.5"
 ```
 
 ### Optional Features
@@ -36,7 +36,7 @@ lastfm-client = "3.4"
 
 ```toml
 [dependencies]
-lastfm-client = { version = "3.4", features = ["sqlite"] }
+lastfm-client = { version = "3.5", features = ["sqlite"] }
 ```
 
 ## Features
@@ -240,10 +240,10 @@ println!("{new_count} new scrobbles inserted");
 Enable the `sqlite` feature in `Cargo.toml`:
 
 ```toml
-lastfm-client = { version = "3.4", features = ["sqlite"] }
+lastfm-client = { version = "3.5", features = ["sqlite"] }
 ```
 
-All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. The databases can be queried with any SQLite tool:
+All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. Extended recent tracks have their own pair of methods: `fetch_extended_and_save_sqlite(prefix)` and `fetch_extended_and_update_sqlite(db_path)`. The databases can be queried with any SQLite tool:
 
 ```bash
 sqlite3 data/recent_tracks_20240101_120000.db \
@@ -255,6 +255,7 @@ Schema overview:
 | Resource | Table | Notable columns |
 |----------|-------|-----------------|
 | `RecentTrack` | `recent_tracks` | `name`, `artist`, `album`, `date_uts` (NULL when now-playing) |
+| `RecentTrackExtended` | `recent_tracks_extended` | `name`, `url`, `mbid`, `artist`, `artist_url`, `album`, `album_url`, `date_uts` (NULL when now-playing) |
 | `LovedTrack` | `loved_tracks` | `name`, `artist`, `date_uts` |
 | `TopTrack` | `top_tracks` | `name`, `artist`, `playcount`, `rank` |
 | `TopArtist` | `top_artists` | `name`, `playcount`, `rank` |
@@ -483,8 +484,10 @@ client.recent_tracks("username")
     .fetch_and_update(file_path) // Fetch only new tracks and prepend to file -> usize
     .fetch_extended_and_update(file_path) // Same for extended tracks -> usize
     // sqlite feature only:
-    .fetch_and_save_sqlite(prefix)        // Fetch and save to a new .db file -> String
-    .fetch_and_update_sqlite(db_path)     // Fetch only new tracks and insert into .db -> usize
+    .fetch_and_save_sqlite(prefix)                  // Fetch and save to a new .db file -> String
+    .fetch_and_update_sqlite(db_path)               // Fetch only new tracks and insert into .db -> usize
+    .fetch_extended_and_save_sqlite(prefix)         // Fetch extended and save to a new .db file -> String
+    .fetch_extended_and_update_sqlite(db_path)      // Fetch only new extended tracks and insert -> usize
 ```
 
 ### Loved Tracks
