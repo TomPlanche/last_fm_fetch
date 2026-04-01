@@ -2,7 +2,7 @@ use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{TopAlbum, TrackLimit, UserTopAlbums};
+use crate::types::{TopAlbum, TrackLimit, TrackList, UserTopAlbums};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
@@ -101,7 +101,7 @@ impl TopAlbumsRequestBuilder {
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn fetch(self) -> Result<Vec<TopAlbum>> {
+    pub async fn fetch(self) -> Result<TrackList<TopAlbum>> {
         let mut params = QueryParams::new();
 
         if let Some(period) = self.period {
@@ -112,7 +112,9 @@ impl TopAlbumsRequestBuilder {
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_albums::<UserTopAlbums>(limit, params).await
+        self.fetch_albums::<UserTopAlbums>(limit, params)
+            .await
+            .map(TrackList::from)
     }
 
     /// Fetch albums and save them to a file

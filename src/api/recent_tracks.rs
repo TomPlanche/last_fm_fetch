@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{
-    RecentTrack, RecentTrackExtended, Timestamped, TrackLimit, UserRecentTracks,
+    RecentTrack, RecentTrackExtended, Timestamped, TrackLimit, TrackList, UserRecentTracks,
     UserRecentTracksExtended,
 };
 use crate::url_builder::QueryParams;
@@ -159,7 +159,7 @@ impl RecentTracksRequestBuilder {
     /// Returns an error if:
     /// - The HTTP request fails or the response cannot be parsed
     /// - The date range is invalid (to <= from when both timestamps are set)
-    pub async fn fetch(self) -> Result<Vec<RecentTrack>> {
+    pub async fn fetch(self) -> Result<TrackList<RecentTrack>> {
         // Validate date range if both from and to are set
         if let (Some(from), Some(to)) = (self.from, self.to)
             && to <= from
@@ -179,7 +179,9 @@ impl RecentTracksRequestBuilder {
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_tracks::<UserRecentTracks>(limit, params).await
+        self.fetch_tracks::<UserRecentTracks>(limit, params)
+            .await
+            .map(TrackList::from)
     }
 
     /// Fetch tracks with extended information
@@ -188,7 +190,7 @@ impl RecentTracksRequestBuilder {
     /// Returns an error if:
     /// - The HTTP request fails or the response cannot be parsed
     /// - The date range is invalid (to <= from when both timestamps are set)
-    pub async fn fetch_extended(self) -> Result<Vec<RecentTrackExtended>> {
+    pub async fn fetch_extended(self) -> Result<TrackList<RecentTrackExtended>> {
         // Validate date range if both from and to are set
         if let (Some(from), Some(to)) = (self.from, self.to)
             && to <= from
@@ -207,6 +209,7 @@ impl RecentTracksRequestBuilder {
 
         self.fetch_tracks_extended::<UserRecentTracksExtended>(limit, params)
             .await
+            .map(TrackList::from)
     }
 
     /// Fetch tracks and save them to a file
@@ -304,7 +307,7 @@ impl RecentTracksRequestBuilder {
     where
         T: serde::de::DeserializeOwned + serde::Serialize + Clone + Timestamped,
         F: FnOnce(Self) -> Fut,
-        Fut: std::future::Future<Output = Result<Vec<T>>>,
+        Fut: std::future::Future<Output = Result<TrackList<T>>>,
     {
         let ext = std::path::Path::new(file_path)
             .extension()

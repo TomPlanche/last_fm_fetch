@@ -35,7 +35,7 @@ pub mod sqlite;
 pub use client::LastFmClient;
 pub use config::{Config, ConfigBuilder, RateLimit};
 pub use error::{LastFmError, Result};
-pub use types::{Period, TrackLimit};
+pub use types::{Period, TrackLimit, TrackList};
 
 // Re-export API clients
 pub use api::{

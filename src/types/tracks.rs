@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -157,6 +158,32 @@ impl fmt::Display for RecentTrack {
     }
 }
 
+impl PartialEq for RecentTrack {
+    fn eq(&self, other: &Self) -> bool {
+        self.date.as_ref().map(|d| d.uts) == other.date.as_ref().map(|d| d.uts)
+    }
+}
+
+impl Eq for RecentTrack {}
+
+impl PartialOrd for RecentTrack {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RecentTrack {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // None (now playing) is treated as the most recent
+        match (self.date.as_ref(), other.date.as_ref()) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (Some(a), Some(b)) => a.uts.cmp(&b.uts),
+        }
+    }
+}
+
 /// A track from recent listening history with extended artist/album information
 ///
 /// Retrieved when using the `extended=1` parameter with `user.getrecenttracks`
@@ -207,6 +234,32 @@ impl fmt::Display for RecentTrackExtended {
     }
 }
 
+impl PartialEq for RecentTrackExtended {
+    fn eq(&self, other: &Self) -> bool {
+        self.date.as_ref().map(|d| d.uts) == other.date.as_ref().map(|d| d.uts)
+    }
+}
+
+impl Eq for RecentTrackExtended {}
+
+impl PartialOrd for RecentTrackExtended {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RecentTrackExtended {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // None (now playing) is treated as the most recent
+        match (self.date.as_ref(), other.date.as_ref()) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (Some(a), Some(b)) => a.uts.cmp(&b.uts),
+        }
+    }
+}
+
 // LOVED TRACK ================================================================
 
 /// A track that a user has marked as "loved" on Last.fm
@@ -238,6 +291,26 @@ impl fmt::Display for LovedTrack {
             "{} - {} (loved {})",
             self.name, self.artist.name, self.date.text
         )
+    }
+}
+
+impl PartialEq for LovedTrack {
+    fn eq(&self, other: &Self) -> bool {
+        self.date.uts == other.date.uts
+    }
+}
+
+impl Eq for LovedTrack {}
+
+impl PartialOrd for LovedTrack {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for LovedTrack {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.date.uts.cmp(&other.date.uts)
     }
 }
 
@@ -279,6 +352,26 @@ impl fmt::Display for TopTrack {
             "#{} - {} by {} ({} plays)",
             self.attr.rank, self.name, self.artist.name, self.playcount
         )
+    }
+}
+
+impl PartialEq for TopTrack {
+    fn eq(&self, other: &Self) -> bool {
+        self.playcount == other.playcount
+    }
+}
+
+impl Eq for TopTrack {}
+
+impl PartialOrd for TopTrack {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TopTrack {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.playcount.cmp(&other.playcount)
     }
 }
 

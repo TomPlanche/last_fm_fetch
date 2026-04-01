@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-04-01
+
+### Added
+
+- **`TrackList<T>`** (`src/types/track_list.rs`): Newtype wrapper around `Vec<T>` returned by all `fetch()` and `fetch_extended()` methods. Implements `Display` (items printed in descending order — most recent first for time-stamped types, most played first for playcount types), `Deref`/`DerefMut` to `Vec<T>`, `From<Vec<T>>`, `From<TrackList<T>> for Vec<T>`, `IntoIterator` (by value, shared ref, and mutable ref), and `FromIterator`. All existing code using the result as a slice or vec continues to work unchanged via deref coercion.
+- **`Ord` (and `PartialOrd`, `Eq`, `PartialEq`) for all resource types**:
+  - `RecentTrack`, `RecentTrackExtended`: ordered by `date.uts`; a `None` date (now-playing track) sorts as the most recent.
+  - `LovedTrack`: ordered by `date.uts`.
+  - `TopTrack`, `TopArtist`, `TopAlbum`: ordered by `playcount`.
+- **`TrackList` re-exported** from the crate root.
+
+### Changed
+
+- All public `fetch()` / `fetch_extended()` return types changed from `Result<Vec<T>>` to `Result<TrackList<T>>` (minor API change; `TrackList<T>` derefs to `Vec<T>` so call sites are unaffected in practice).
+
 ## [3.5.0] - 2026-03-17
 
 ### Added
