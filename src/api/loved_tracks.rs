@@ -3,7 +3,7 @@ use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::file_handler::{FileFormat, FileHandler};
-use crate::types::{LovedTrack, Timestamped, TrackLimit, UserLovedTracks};
+use crate::types::{LovedTrack, Timestamped, TrackLimit, TrackList, UserLovedTracks};
 
 use serde::de::DeserializeOwned;
 use std::fmt;
@@ -86,12 +86,14 @@ impl LovedTracksRequestBuilder {
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn fetch(self) -> Result<Vec<LovedTrack>> {
+    pub async fn fetch(self) -> Result<TrackList<LovedTrack>> {
         let limit = self
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_tracks::<UserLovedTracks>(limit).await
+        self.fetch_tracks::<UserLovedTracks>(limit)
+            .await
+            .map(TrackList::from)
     }
 
     /// Fetch tracks and save them to a file
@@ -170,7 +172,7 @@ impl LovedTracksRequestBuilder {
                 .into_iter()
                 .filter(|t| t.date.uts > max_ts)
                 .collect(),
-            None => all_tracks,
+            None => all_tracks.into(),
         };
 
         let count = new_tracks.len();
@@ -228,7 +230,7 @@ impl LovedTracksRequestBuilder {
                 .into_iter()
                 .filter(|t| t.get_timestamp().is_some_and(|ts| ts > max_ts))
                 .collect(),
-            None => all_tracks,
+            None => all_tracks.into(),
         };
 
         let count = new_tracks.len();

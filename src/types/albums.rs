@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt;
 
 use crate::types::{BaseObject, BaseResponse, RankAttr, TrackImage};
@@ -36,6 +37,26 @@ impl fmt::Display for TopAlbum {
             "#{} - {} by {} ({} plays)",
             self.attr.rank, self.name, self.artist.name, self.playcount
         )
+    }
+}
+
+impl PartialEq for TopAlbum {
+    fn eq(&self, other: &Self) -> bool {
+        self.playcount == other.playcount
+    }
+}
+
+impl Eq for TopAlbum {}
+
+impl PartialOrd for TopAlbum {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TopAlbum {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.playcount.cmp(&other.playcount)
     }
 }
 

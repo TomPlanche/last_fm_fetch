@@ -2,6 +2,11 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v3.6
+
+- **`TrackList<T>`**: All `fetch()` methods now return `TrackList<T>` instead of `Vec<T>`. `TrackList<T>` implements `Display` — items are printed in descending order (most recent first for time-stamped types, most played first for playcount types). It derefs to `Vec<T>` so all existing code continues to work unchanged.
+- **`Ord` for track types**: `RecentTrack`, `RecentTrackExtended`, `LovedTrack` are ordered by timestamp; `TopTrack`, `TopArtist`, `TopAlbum` are ordered by play count. Enables `sort()`, `min()`, `max()`, etc. directly on any collection.
+
 ## What's new in v3.4
 
 - **NDJSON export**: `FileFormat::Ndjson` produces `.ndjson` files (one compact JSON object per line). `fetch_and_save` and `fetch_and_update` both support it - incremental updates append new lines without rewriting the whole file. `FileHandler::load_ndjson` and `FileHandler::append_or_create_ndjson` are also public. Way faster than JSON for updates.
@@ -25,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.5"
+lastfm-client = "3.6"
 ```
 
 ### Optional Features
@@ -36,7 +41,7 @@ lastfm-client = "3.5"
 
 ```toml
 [dependencies]
-lastfm-client = { version = "3.5", features = ["sqlite"] }
+lastfm-client = { version = "3.6", features = ["sqlite"] }
 ```
 
 ## Features
@@ -240,7 +245,7 @@ println!("{new_count} new scrobbles inserted");
 Enable the `sqlite` feature in `Cargo.toml`:
 
 ```toml
-lastfm-client = { version = "3.5", features = ["sqlite"] }
+lastfm-client = { version = "3.6", features = ["sqlite"] }
 ```
 
 All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. Extended recent tracks have their own pair of methods: `fetch_extended_and_save_sqlite(prefix)` and `fetch_extended_and_update_sqlite(db_path)`. The databases can be queried with any SQLite tool:
@@ -474,8 +479,8 @@ client.recent_tracks("username")
     .between(i64, i64)       // Tracks between two timestamps
     .extended()              // Include extended info
     .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
-    .fetch()                 // Execute and get Vec<RecentTrack>
-    .fetch_extended()        // Execute and get Vec<RecentTrackExtended>
+    .fetch()                 // Execute and get TrackList<RecentTrack>
+    .fetch_extended()        // Execute and get TrackList<RecentTrackExtended>
     .check_currently_playing() // Check if currently playing
     .analyze(usize)          // Analyze tracks and get statistics
     .analyze_and_print(usize) // Analyze and print statistics
@@ -496,7 +501,7 @@ client.recent_tracks("username")
 client.loved_tracks("username")
     .limit(u32)              // Limit number of tracks
     .unlimited()             // Fetch all available tracks
-    .fetch()                 // Execute and get Vec<LovedTrack>
+    .fetch()                 // Execute and get TrackList<LovedTrack>
     .analyze(usize)          // Analyze tracks and get statistics
     .analyze_and_print(usize) // Analyze and print statistics
     .fetch_and_save(format, prefix) // Fetch and save to a new timestamped file
@@ -513,7 +518,7 @@ client.top_tracks("username")
     .limit(u32)              // Limit number of tracks
     .unlimited()             // Fetch all available tracks
     .period(Period)          // Time period filter
-    .fetch()                 // Execute and get Vec<TopTrack>
+    .fetch()                 // Execute and get TrackList<TopTrack>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
@@ -525,7 +530,7 @@ client.top_artists("username")
     .limit(u32)              // Limit number of artists
     .unlimited()             // Fetch all available artists
     .period(Period)          // Time period filter
-    .fetch()                 // Execute and get Vec<TopArtist>
+    .fetch()                 // Execute and get TrackList<TopArtist>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
@@ -537,7 +542,7 @@ client.top_albums("username")
     .limit(u32)              // Limit number of albums
     .unlimited()             // Fetch all available albums
     .period(Period)          // Time period filter
-    .fetch()                 // Execute and get Vec<TopAlbum>
+    .fetch()                 // Execute and get TrackList<TopAlbum>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
@@ -642,6 +647,7 @@ src/
 │   ├── tracks.rs            # Track type definitions
 │   ├── artists.rs           # Artist type definitions
 │   ├── albums.rs            # Album type definitions
+│   ├── track_list.rs        # TrackList<T> newtype with Display + Deref
 │   └── period.rs            # Period and TrackLimit enums
 ├── config.rs                # Configuration with builder
 ├── error.rs                 # Rich error types with retry hints
