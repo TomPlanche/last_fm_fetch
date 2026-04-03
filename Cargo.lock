@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "lastfm-client"
-version = "3.9.0"
+version = "3.10.1"
 dependencies = [
  "async-trait",
  "chrono",
