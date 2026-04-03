@@ -1380,6 +1380,150 @@ impl crate::sqlite::SqliteExportable for TopTrack {
     }
 }
 
+// SQLITE LOAD ================================================================
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteLoadable for RecentTrack {
+    fn select_sql() -> &'static str {
+        // Columns: name(0) url(1) artist(2) artist_mbid(3) album(4) album_mbid(5) date_uts(6)
+        // NULL date_uts → now-playing; ORDER puts those first (NULLS FIRST in DESC).
+        "SELECT name, url, artist, artist_mbid, album, album_mbid, date_uts
+         FROM recent_tracks
+         ORDER BY CASE WHEN date_uts IS NULL THEN 0 ELSE 1 END, date_uts DESC"
+    }
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        let date_uts: Option<u32> = row.get(6)?;
+        Ok(Self {
+            name: row.get(0)?,
+            url: row.get(1)?,
+            artist: BaseMbidText {
+                text: row.get(2)?,
+                mbid: row.get(3)?,
+            },
+            album: BaseMbidText {
+                text: row.get(4)?,
+                mbid: row.get(5)?,
+            },
+            date: date_uts.map(|uts| Date {
+                uts,
+                text: String::new(),
+            }),
+            // Fields not stored in the schema — reconstructed with defaults.
+            mbid: String::new(),
+            streamable: false,
+            image: vec![],
+            attr: None,
+        })
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteLoadable for RecentTrackExtended {
+    fn select_sql() -> &'static str {
+        // Columns: name(0) url(1) mbid(2) artist(3) artist_mbid(4) artist_url(5)
+        //          album(6) album_mbid(7) album_url(8) date_uts(9)
+        "SELECT name, url, mbid, artist, artist_mbid, artist_url,
+                album, album_mbid, album_url, date_uts
+         FROM recent_tracks_extended
+         ORDER BY CASE WHEN date_uts IS NULL THEN 0 ELSE 1 END, date_uts DESC"
+    }
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        let date_uts: Option<u32> = row.get(9)?;
+        Ok(Self {
+            name: row.get(0)?,
+            url: row.get(1)?,
+            mbid: row.get(2)?,
+            artist: BaseObject {
+                name: row.get(3)?,
+                mbid: row.get(4)?,
+                url: row.get(5)?,
+            },
+            album: BaseObject {
+                name: row.get(6)?,
+                mbid: row.get(7)?,
+                url: row.get(8)?,
+            },
+            date: date_uts.map(|uts| Date {
+                uts,
+                text: String::new(),
+            }),
+            // Fields not stored in the schema — reconstructed with defaults.
+            streamable: false,
+            image: vec![],
+            attr: None,
+        })
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteLoadable for LovedTrack {
+    fn select_sql() -> &'static str {
+        // Columns: name(0) url(1) artist(2) artist_mbid(3) date_uts(4)
+        "SELECT name, url, artist, artist_mbid, date_uts
+         FROM loved_tracks
+         ORDER BY date_uts DESC"
+    }
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            name: row.get(0)?,
+            url: row.get(1)?,
+            artist: BaseObject {
+                name: row.get(2)?,
+                mbid: row.get(3)?,
+                url: String::new(),
+            },
+            date: Date {
+                uts: row.get(4)?,
+                text: String::new(),
+            },
+            // Fields not stored in the schema — reconstructed with defaults.
+            mbid: String::new(),
+            image: vec![],
+            streamable: Streamable {
+                fulltrack: String::new(),
+                text: String::new(),
+            },
+        })
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteLoadable for TopTrack {
+    fn select_sql() -> &'static str {
+        // Columns: name(0) url(1) artist(2) mbid(3) playcount(4) rank(5)
+        "SELECT name, url, artist, mbid, playcount, rank
+         FROM top_tracks
+         ORDER BY rank ASC"
+    }
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            name: row.get(0)?,
+            url: row.get(1)?,
+            artist: BaseObject {
+                name: row.get(2)?,
+                mbid: String::new(),
+                url: String::new(),
+            },
+            mbid: row.get(3)?,
+            playcount: row.get(4)?,
+            attr: RankAttr {
+                rank: row.get::<_, u32>(5)?.to_string(),
+            },
+            // Fields not stored in the schema — reconstructed with defaults.
+            duration: 0,
+            streamable: Streamable {
+                fulltrack: String::new(),
+                text: String::new(),
+            },
+            image: vec![],
+        })
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
