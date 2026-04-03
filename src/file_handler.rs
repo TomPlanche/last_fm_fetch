@@ -1,5 +1,4 @@
 use chrono::Local;
-use csv::Writer;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -79,7 +78,7 @@ impl FileHandler {
                 }
                 Self::save_as_json(data, &filename)
             }
-            FileFormat::Csv => Self::save_as_csv(data, &filename),
+            FileFormat::Csv => crate::csv_export::save_as_csv_dispatch(data, &filename),
             FileFormat::Ndjson => Self::save_as_ndjson(data, &filename),
         }?;
 
@@ -98,22 +97,6 @@ impl FileHandler {
 
         file.write_all(json.as_bytes())?;
 
-        Ok(())
-    }
-
-    /// Save data to a CSV file.
-    ///
-    /// # Arguments
-    /// * `data` - Data to save
-    /// * `filename` - Filename to save as
-    fn save_as_csv<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
-        let mut writer = Writer::from_path(filename)?;
-
-        for item in data {
-            writer.serialize(item)?;
-        }
-
-        writer.flush()?;
         Ok(())
     }
 
@@ -243,14 +226,7 @@ impl FileHandler {
                 Self::save_as_json(&existing_data, file_path)?;
             }
             FileFormat::Csv => {
-                // For CSV, we can simply append to the file
-                let mut writer =
-                    Writer::from_writer(OpenOptions::new().append(true).open(file_path)?);
-
-                for item in data {
-                    writer.serialize(item)?;
-                }
-                writer.flush()?;
+                crate::csv_export::append_csv_rows_dispatch(data, file_path)?;
             }
             FileFormat::Ndjson => {
                 Self::append_ndjson_lines(data, file_path)?;
@@ -330,18 +306,12 @@ impl FileHandler {
     /// * `csv::Error` - If serialization fails
     pub fn append_or_create_csv<T: Serialize>(new_data: &[T], file_path: &str) -> Result<()> {
         if std::path::Path::new(file_path).exists() {
-            let mut writer = csv::WriterBuilder::new()
-                .has_headers(false)
-                .from_writer(OpenOptions::new().append(true).open(file_path)?);
-            for item in new_data {
-                writer.serialize(item)?;
-            }
-            writer.flush()?;
+            crate::csv_export::append_csv_rows_dispatch(new_data, file_path)?;
         } else {
             if let Some(parent) = std::path::Path::new(file_path).parent() {
                 fs::create_dir_all(parent)?;
             }
-            Self::save_as_csv(new_data, file_path)?;
+            crate::csv_export::save_as_csv_dispatch(new_data, file_path)?;
         }
         Ok(())
     }

@@ -103,6 +103,20 @@ Create a `.env` file in your project root:
 LAST_FM_API_KEY=your_api_key_here
 ```
 
+## Examples
+
+Runnable programs live in [`examples/`](examples/). Set `LAST_FM_API_KEY` (and optionally `LASTFM_USERNAME`). Run from the **crate root** so relative paths like `data/` match the library’s file helpers.
+
+| Example | Command | What it shows |
+|---------|---------|----------------|
+| `scrobbles_file_workflow` | `cargo run --example scrobbles_file_workflow` | `fetch_and_save` / `fetch_and_update` (JSON, CSV, NDJSON), `FileHandler::load` / `load_ndjson`, `TrackList` aggregations, extended saves, `analyze`, `check_currently_playing`, `on_progress`, top charts + loved tracks |
+| `scrobbles_sqlite` | `cargo run --example scrobbles_sqlite --features sqlite` | `fetch_and_save_sqlite`, `fetch_and_update_sqlite`, `FileHandler::load_sqlite` |
+| `new_api_demo` | `cargo run --example new_api_demo` | Basic recent-track builders |
+| `advanced_features` | `cargo run --example advanced_features` | Retry, rate limiting, config |
+| `loved_tracks_demo` | `cargo run --example loved_tracks_demo` | Loved + recent via lower-level clients |
+| `check_user_exists` | `cargo run --example check_user_exists` | `user_exists` |
+| `validate_env` | `cargo run --example validate_env` | `validate_env_vars` |
+
 ## Usage
 
 ### Quick Start

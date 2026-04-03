@@ -18,6 +18,9 @@ pub mod types;
 #[path = "analytics.rs"]
 pub mod analytics;
 
+/// Flat CSV layouts for nested Last.fm types (internal)
+mod csv_export;
+
 /// File I/O for saving and loading track data
 #[path = "file_handler.rs"]
 pub mod file_handler;
