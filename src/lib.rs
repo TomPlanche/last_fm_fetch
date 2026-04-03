@@ -43,9 +43,9 @@ pub use api::{
     RecentTracksRequestBuilder, TopTracksClient, TopTracksRequestBuilder,
 };
 
-// Re-export SQLite trait when feature is enabled
+// Re-export SQLite traits when feature is enabled
 #[cfg(feature = "sqlite")]
-pub use sqlite::SqliteExportable;
+pub use sqlite::{SqliteExportable, SqliteLoadable};
 
 // Re-export commonly used types
 pub use types::{

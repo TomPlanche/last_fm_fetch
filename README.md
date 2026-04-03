@@ -2,6 +2,30 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v3.9
+
+Load data back from a `SQLite` database produced by `fetch_and_save_sqlite` or
+`fetch_and_update_sqlite`. The returned `TrackList<T>` supports all analysis
+methods.
+
+```rust
+use lastfm_client::{file_handler::FileHandler, RecentTrack};
+
+let tracks = FileHandler::load_sqlite::<RecentTrack>("data/recent_tracks.db")?;
+
+let top     = tracks.to_set();         // TrackList<ScoredTrack>
+let artists = tracks.top_artists();    // TrackList<ScoredArtist>
+let streak  = tracks.streak();         // u32
+```
+
+Supported types: `RecentTrack`, `RecentTrackExtended`, `LovedTrack`, `TopTrack`,
+`TopArtist`, `TopAlbum`. Requires the `sqlite` feature.
+
+> **Note**: fields not stored in the schema (images, streamability flags,
+> human-readable dates) are reconstructed with empty defaults. All analysis
+> methods work correctly on loaded data.
+
+
 ## What's new in v3.8
 
 **`impl TrackList<RecentTrackExtended>`**: the same aggregation helpers as
@@ -23,55 +47,6 @@ let hours       = extended.by_hour();       // [u32; 24]
 let streak      = extended.streak();        // u32
 let clean       = extended.without_now_playing();
 ```
-
-## What's new in v3.7
-
-Local aggregation methods on `TrackList<RecentTrack>` — compute top tracks, artists, and albums for **any custom date range** without being limited to the API's fixed period options (`7day`, `1month`, etc.).
-
-```rust
-let recent = client
-    .recent_tracks("username")
-    .between(two_weeks_ago, now)
-    .fetch()
-    .await?;
-
-// Top tracks for the custom period
-let top_tracks  = recent.to_set();       // TrackList<ScoredTrack>
-let top_artists = recent.top_artists();  // TrackList<ScoredArtist>
-let top_albums  = recent.top_albums();   // TrackList<ScoredAlbum>
-
-// Listening pattern analysis
-let hours  = recent.by_hour();  // [u32; 24]  — plays per UTC hour
-let dates  = recent.by_date();  // BTreeMap<NaiveDate, u32>
-let streak = recent.streak();   // u32  — longest consecutive-day streak
-
-// Utilities
-let clean          = recent.without_now_playing();  // drops currently-playing track
-let artist_count   = recent.unique_artist_count();  // distinct artist names
-let track_count    = recent.unique_track_count();   // distinct (name, artist) pairs
-```
-
-## What's new in v3.6
-
-- **`TrackList<T>`**: All `fetch()` methods now return `TrackList<T>` instead of `Vec<T>`. `TrackList<T>` implements `Display` — items are printed in descending order (most recent first for time-stamped types, most played first for playcount types). It derefs to `Vec<T>` so all existing code continues to work unchanged.
-- **`Ord` for track types**: `RecentTrack`, `RecentTrackExtended`, `LovedTrack` are ordered by timestamp; `TopTrack`, `TopArtist`, `TopAlbum` are ordered by play count. Enables `sort()`, `min()`, `max()`, etc. directly on any collection.
-
-## What's new in v3.4
-
-- **NDJSON export**: `FileFormat::Ndjson` produces `.ndjson` files (one compact JSON object per line). `fetch_and_save` and `fetch_and_update` both support it - incremental updates append new lines without rewriting the whole file. `FileHandler::load_ndjson` and `FileHandler::append_or_create_ndjson` are also public. Way faster than JSON for updates.
-
-## What's new in v3.3
-
-- **SQLite export** (`sqlite` feature): `fetch_and_save_sqlite` and `fetch_and_update_sqlite` on all resource builders - see [SQLite Export](#sqlite-export-optional-feature)
-
-## What's new in v3.0
-
-- **Breaking**: Removed the deprecated `lastfm_handler` module (`LastFMHandler` and all v1.x methods)
-- **Top Artists**: Fetch top artists via `client.top_artists("username")`
-- **Top Albums**: Fetch top albums via `client.top_albums("username")`
-- Unified `ResourceContainer` trait across all resource types
-
-If you were still using the v1.x API, see the [migration section](#migrating-from-v2x) below.
 
 ## Installation
 

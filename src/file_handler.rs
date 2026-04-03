@@ -6,7 +6,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Result, Write as _};
 
 #[cfg(feature = "sqlite")]
-use rusqlite::Connection as SqliteConnection;
+use rusqlite::{Connection as SqliteConnection, OpenFlags};
 
 use crate::types::TrackPlayInfo;
 
@@ -443,6 +443,69 @@ impl FileHandler {
             .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         Ok(())
+    }
+
+    /// Load all rows from a `SQLite` database into a [`crate::types::TrackList`].
+    ///
+    /// Opens the database at `file_path` and runs `T::select_sql()`, mapping
+    /// each row with `T::from_row`. The returned `TrackList<T>` supports all
+    /// analysis methods (`to_set()`, `top_artists()`, `by_date()`, etc.).
+    ///
+    /// Fields that are not persisted in the database schema (such as `image`,
+    /// `streamable`, and human-readable date strings) are reconstructed with
+    /// empty/default values. See [`crate::sqlite::SqliteLoadable`] for details.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the `.db` file produced by `fetch_and_save_sqlite`
+    ///   or `fetch_and_update_sqlite`. Relative paths are resolved from the **process
+    ///   current working directory** (for `cargo run`, that is normally the package
+    ///   root where `Cargo.toml` lives, not `target/release/`).
+    ///
+    /// # Errors
+    /// * `std::io::Error` - If the database cannot be opened or the query fails
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use lastfm_client::{file_handler::FileHandler, RecentTrack};
+    ///
+    /// let tracks = FileHandler::load_sqlite::<RecentTrack>("data/recent_tracks.db")?;
+    /// let top = tracks.to_set();        // TrackList<ScoredTrack>
+    /// let artists = tracks.top_artists(); // TrackList<ScoredArtist>
+    /// println!("Streak: {} day(s)", tracks.streak());
+    /// ```
+    #[cfg(feature = "sqlite")]
+    pub fn load_sqlite<T: crate::sqlite::SqliteLoadable>(
+        file_path: &str,
+    ) -> std::io::Result<crate::types::TrackList<T>> {
+        let path = std::path::Path::new(file_path);
+        if !path.is_file() {
+            let cwd = std::env::current_dir()
+                .map_or_else(|_| "<unavailable>".to_string(), |p| p.display().to_string());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("SQLite database not found at {file_path:?} (resolved from cwd {cwd:?})"),
+            ));
+        }
+
+        let conn = SqliteConnection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        let mut stmt = conn
+            .prepare(T::select_sql())
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| T::from_row(row))
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        let items: rusqlite::Result<Vec<T>> = rows.collect();
+        let items = items.map_err(|e| std::io::Error::other(e.to_string()))?;
+
+        Ok(crate::types::TrackList::from(items))
     }
 
     /// Query the maximum `date_uts` value stored in a `SQLite` table.

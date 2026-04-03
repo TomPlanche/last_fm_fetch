@@ -98,6 +98,37 @@ impl crate::sqlite::SqliteExportable for TopAlbum {
     }
 }
 
+// SQLITE LOAD ================================================================
+
+#[cfg(feature = "sqlite")]
+impl crate::sqlite::SqliteLoadable for TopAlbum {
+    fn select_sql() -> &'static str {
+        // Columns: name(0) mbid(1) url(2) artist(3) playcount(4) rank(5)
+        "SELECT name, mbid, url, artist, playcount, rank
+         FROM top_albums
+         ORDER BY rank ASC"
+    }
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            name: row.get(0)?,
+            mbid: row.get(1)?,
+            url: row.get(2)?,
+            artist: crate::types::BaseObject {
+                name: row.get(3)?,
+                mbid: String::new(),
+                url: String::new(),
+            },
+            playcount: row.get(4)?,
+            attr: crate::types::RankAttr {
+                rank: row.get::<_, u32>(5)?.to_string(),
+            },
+            // Fields not stored in the schema — reconstructed with defaults.
+            image: vec![],
+        })
+    }
+}
+
 /// Top albums response wrapper
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]

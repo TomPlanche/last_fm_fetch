@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - 2026-04-03
+
+### Added
+
+`SQLite` load support — a read-side companion to the existing export API.
+
+#### New trait: `SqliteLoadable` (`src/sqlite.rs`, `sqlite` feature)
+
+```rust
+pub trait SqliteLoadable: Sized {
+    fn select_sql() -> &'static str;
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self>;
+}
+```
+
+Implemented for all six persistable types: `RecentTrack`, `RecentTrackExtended`,
+`LovedTrack`, `TopTrack`, `TopArtist`, `TopAlbum`.
+
+**Note on field coverage**: SQLite schemas store a curated subset of fields.
+Fields not persisted (e.g. `image`, `streamable`, human-readable date strings)
+are reconstructed with empty/default values. All analysis methods (`to_set()`,
+`top_artists()`, `by_date()`, `streak()`, etc.) work correctly on loaded data.
+
+#### New method: `FileHandler::load_sqlite` (`sqlite` feature)
+
+```rust
+pub fn load_sqlite<T: SqliteLoadable>(file_path: &str) -> io::Result<TrackList<T>>
+```
+
+Loads all rows from a `.db` file produced by `fetch_and_save_sqlite` or
+`fetch_and_update_sqlite`. Returns a `TrackList<T>` ready for analysis.
+
+#### Exports
+
+- `SqliteLoadable` is now re-exported from the crate root alongside `SqliteExportable`
+
 ## [3.8.0] - 2026-04-03
 
 ### Added
