@@ -387,7 +387,7 @@ impl Ord for TopTrack {
 /// times that track appears in the source list. Useful as a substitute for
 /// the Top Tracks API when the built-in [`crate::types::Period`] options don't
 /// cover the time range you need.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ScoredTrack {
     /// Track name
@@ -451,7 +451,7 @@ impl Ord for ScoredTrack {
 /// This is the output of [`TrackList<RecentTrack>::top_artists`]. Every track
 /// by the same artist is counted; `play_count` is the total number of
 /// scrobbles by that artist in the source list.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ScoredArtist {
     /// Artist name
@@ -504,7 +504,7 @@ impl Ord for ScoredArtist {
 /// This is the output of [`TrackList<RecentTrack>::top_albums`]. Tracks are
 /// grouped by `(album name, artist)` pair; tracks with an empty album field
 /// are excluded.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ScoredAlbum {
     /// Album name
