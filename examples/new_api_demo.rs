@@ -1,6 +1,6 @@
 //! Demonstrates the builder-pattern API.
 
-use lastfm_client::LastFmClient;
+use lastfm_client::{LastFmClient, LimitBuilder};
 
 /// Example demonstrating the new v2.0 API with builder pattern
 ///
@@ -74,7 +74,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client
         .recent_tracks("tom_planche")
         .limit(5)
-        .extended(true)
         .fetch_extended()
         .await
     {

@@ -60,7 +60,7 @@ pub trait ResourceContainer {
 }
 
 /// Generic function to fetch things with pagination
-pub(super) async fn fetch<T, R>(
+pub(in crate::api) async fn fetch<T, R>(
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,

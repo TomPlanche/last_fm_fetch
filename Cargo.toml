@@ -1,6 +1,6 @@
 [package]
 name = "lastfm-client"
-version = "3.10.1"
+version = "4.0.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
@@ -9,7 +9,9 @@ keywords = ["lastfm", "api", "async", "music", "scrobble"]
 categories = ["api-bindings", "web-programming"]
 
 [features]
-sqlite = ["dep:rusqlite"]
+sqlite   = ["dep:rusqlite"]
+progress = ["dep:indicatif"]
+full     = ["sqlite", "progress"]
 
 [dependencies]
 async-trait = "0.1"
@@ -19,7 +21,8 @@ dotenv = "0.15.0"
 futures = "0.3.31"
 parking_lot = "0.12"
 reqwest = { version = "0.12.28", features = ["json"] }
-rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+indicatif = { version = "0.17", optional = true }
+rusqlite  = { version = "0.31", features = ["bundled"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "1.0"
@@ -33,6 +36,10 @@ tokio = { version = "1.49.0", features = ["full", "test-util", "rt-multi-thread"
 [[example]]
 name = "scrobbles_sqlite"
 required-features = ["sqlite"]
+
+[[example]]
+name = "with_progress"
+required-features = ["progress"]
 
 [lints.rust]
 dead_code                     = "deny"

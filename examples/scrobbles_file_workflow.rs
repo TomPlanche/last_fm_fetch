@@ -22,7 +22,10 @@
 
 use lastfm_client::api::Period;
 use lastfm_client::file_handler::{FileFormat, FileHandler};
-use lastfm_client::{LastFmClient, RecentTrack, RecentTrackExtended, TrackList};
+use lastfm_client::{
+    Analyze, FetchAndSave, FetchAndUpdate, LastFmClient, LimitBuilder, RecentTrack,
+    RecentTrackExtended, TrackList,
+};
 
 type DynResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -106,7 +109,6 @@ async fn demo_extended(client: &LastFmClient, user: &str) -> DynResult {
     let ext_path = client
         .recent_tracks(user)
         .limit(80)
-        .extended(true)
         .fetch_extended_and_save(FileFormat::Json, "scrobbles_extended_demo")
         .await?;
     println!("Extended save: {ext_path}");

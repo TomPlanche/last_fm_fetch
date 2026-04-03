@@ -1,6 +1,6 @@
 //! Demonstrates advanced features (retry, rate limiting).
 
-use lastfm_client::LastFmClient;
+use lastfm_client::{LastFmClient, LimitBuilder};
 use std::time::Duration;
 
 /// Example demonstrating advanced v2.0 features

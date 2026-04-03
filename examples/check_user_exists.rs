@@ -1,6 +1,6 @@
 //! Demonstrates user existence validation.
 
-use lastfm_client::LastFmClient;
+use lastfm_client::{LastFmClient, LimitBuilder};
 
 /// Example demonstrating user existence validation
 ///

@@ -11,7 +11,9 @@
 //! Optional: `LASTFM_USERNAME=yourname` (defaults to `tom_planche`).
 
 use lastfm_client::file_handler::FileHandler;
-use lastfm_client::{LastFmClient, RecentTrack, TrackList};
+use lastfm_client::{
+    FetchAndSave, FetchAndUpdate, LastFmClient, LimitBuilder, RecentTrack, TrackList,
+};
 
 fn username() -> String {
     std::env::var("LASTFM_USERNAME").unwrap_or_else(|_| "tom_planche".into())

@@ -1,7 +1,8 @@
 //! Extension traits shared across all API request builders.
 //!
-//! Import these traits to access the `limit`, `unlimited`, `fetch_and_save`, and
-//! `fetch_and_save_sqlite` methods on any builder type.
+//! Import these traits to access the `limit`, `unlimited`, `fetch_and_save`,
+//! `fetch_and_save_sqlite`, `fetch_and_update`, `fetch_and_update_sqlite`,
+//! `analyze`, and `analyze_and_print` methods on any builder type.
 
 use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::Timestamped;
@@ -12,7 +13,7 @@ use crate::types::Timestamped;
 ///
 /// # Example
 /// ```rust,ignore
-/// use lastfm_client::{LastFmClient, LimitBuilder};
+/// use lastfm_client::{LastFmClient, prelude::*};
 ///
 /// let tracks = client.top_tracks("username")
 ///     .limit(50)
@@ -34,6 +35,7 @@ pub trait LimitBuilder: Sized {
     #[must_use]
     fn limit(mut self, n: u32) -> Self {
         *self.limit_mut() = Some(n);
+
         self
     }
 
@@ -41,6 +43,7 @@ pub trait LimitBuilder: Sized {
     #[must_use]
     fn unlimited(mut self) -> Self {
         *self.limit_mut() = None;
+
         self
     }
 }
@@ -64,6 +67,12 @@ pub trait FetchAndSave: Sized {
 
     /// A human-readable label used in log messages (e.g. `"top tracks"`).
     fn resource_label() -> &'static str;
+
+    /// Return the most recent timestamp from the given items, used to write a sidecar file
+    /// after saving. Return `None` (the default) if the item type has no timestamp.
+    fn latest_timestamp(_items: &[Self::Item]) -> Option<u32> {
+        None
+    }
 
     /// Execute the underlying fetch and return items.
     ///
@@ -91,8 +100,16 @@ pub trait FetchAndSave: Sized {
     ) -> crate::error::Result<String> {
         let items = self.do_fetch().await?;
         tracing::info!("Saving {} {} to file", items.len(), Self::resource_label());
-        FileHandler::save(&items, &format, filename_prefix)
-            .map_err(crate::error::LastFmError::Io)
+
+        let filename = FileHandler::save(&items, &format, filename_prefix)
+            .map_err(crate::error::LastFmError::Io)?;
+
+        if let Some(latest_ts) = Self::latest_timestamp(&items) {
+            FileHandler::write_sidecar_timestamp(&filename, latest_ts)
+                .map_err(crate::error::LastFmError::Io)?;
+        }
+
+        Ok(filename)
     }
 
     /// Fetch items and save them to a new `SQLite` database file.
@@ -107,17 +124,19 @@ pub trait FetchAndSave: Sized {
     /// # Returns
     /// * `Result<String>` - Path to the saved database file
     #[cfg(feature = "sqlite")]
-    async fn fetch_and_save_sqlite(
-        self,
-        filename_prefix: &str,
-    ) -> crate::error::Result<String>
+    async fn fetch_and_save_sqlite(self, filename_prefix: &str) -> crate::error::Result<String>
     where
         Self::Item: crate::sqlite::SqliteExportable,
     {
         let items = self.do_fetch().await?;
-        tracing::info!("Saving {} {} to SQLite", items.len(), Self::resource_label());
-        FileHandler::save_sqlite(&items, filename_prefix)
-            .map_err(crate::error::LastFmError::Io)
+
+        tracing::info!(
+            "Saving {} {} to SQLite",
+            items.len(),
+            Self::resource_label()
+        );
+
+        FileHandler::save_sqlite(&items, filename_prefix).map_err(crate::error::LastFmError::Io)
     }
 }
 
@@ -147,7 +166,7 @@ pub trait FetchAndUpdate: Sized {
     /// to it. Creates the file if it does not exist.
     ///
     /// The latest timestamp is read from a sidecar file, falling back to scanning the JSON
-    /// file itself. CSV files rely exclusively on the sidecar.
+    /// file itself. CSV and NDJSON files rely exclusively on the sidecar.
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails, the response cannot be parsed, or the file
@@ -156,20 +175,25 @@ pub trait FetchAndUpdate: Sized {
     /// # Returns
     /// * `Result<usize>` - Number of new items prepended
     async fn fetch_and_update(self, file_path: &str) -> crate::error::Result<usize> {
-        let is_csv = std::path::Path::new(file_path)
+        let ext = std::path::Path::new(file_path)
             .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+        let is_csv = ext.as_deref() == Some("csv");
+        let is_ndjson = ext.as_deref() == Some("ndjson");
 
         let max_ts = if let Some(ts) = FileHandler::read_sidecar_timestamp(file_path) {
             Some(ts)
-        } else if !is_csv && std::path::Path::new(file_path).exists() {
+        } else if !is_csv && !is_ndjson && std::path::Path::new(file_path).exists() {
             let existing: Vec<Self::Item> =
                 FileHandler::load(file_path).map_err(crate::error::LastFmError::Io)?;
             let ts = existing.iter().filter_map(Timestamped::get_timestamp).max();
+
             if let Some(t) = ts {
                 FileHandler::write_sidecar_timestamp(file_path, t)
                     .map_err(crate::error::LastFmError::Io)?;
             }
+
             ts
         } else {
             None
@@ -183,8 +207,12 @@ pub trait FetchAndUpdate: Sized {
                 FileHandler::write_sidecar_timestamp(file_path, latest_ts)
                     .map_err(crate::error::LastFmError::Io)?;
             }
+
             if is_csv {
                 FileHandler::append_or_create_csv(&new_items, file_path)
+                    .map_err(crate::error::LastFmError::Io)?;
+            } else if is_ndjson {
+                FileHandler::append_or_create_ndjson(&new_items, file_path)
                     .map_err(crate::error::LastFmError::Io)?;
             } else {
                 FileHandler::prepend_json(&new_items, file_path)
@@ -226,5 +254,73 @@ pub trait FetchAndUpdate: Sized {
         }
 
         Ok(count)
+    }
+}
+
+/// Extension trait providing `analyze` and `analyze_and_print` for request builders.
+///
+/// A blanket implementation is provided for every builder that implements [`FetchAndSave`]
+/// whose item type implements [`crate::analytics::TrackAnalyzable`]. Import this trait to
+/// call `.analyze(threshold)` and `.analyze_and_print(threshold)` on any qualifying builder.
+///
+/// # Example
+/// ```rust,ignore
+/// use lastfm_client::{LastFmClient, Analyze};
+///
+/// let stats = client.recent_tracks("username")
+///     .analyze(5)
+///     .await?;
+/// ```
+#[allow(async_fn_in_trait)]
+pub trait Analyze: Sized {
+    /// The item type produced by this builder.
+    type Item: crate::analytics::TrackAnalyzable;
+
+    /// Execute the underlying fetch and return items for analysis.
+    #[doc(hidden)]
+    async fn do_fetch_for_analyze(self) -> crate::error::Result<Vec<Self::Item>>;
+
+    /// Fetch items and return play-count statistics.
+    ///
+    /// # Arguments
+    /// * `threshold` - Tracks with fewer plays than this are counted in
+    ///   `tracks_below_threshold`.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    async fn analyze(self, threshold: usize) -> crate::error::Result<crate::analytics::TrackStats> {
+        let items = self.do_fetch_for_analyze().await?;
+
+        Ok(crate::analytics::AnalysisHandler::analyze_tracks(
+            &items, threshold,
+        ))
+    }
+
+    /// Fetch items, compute statistics, and print them to stdout.
+    ///
+    /// # Arguments
+    /// * `threshold` - Tracks with fewer plays than this are counted in
+    ///   `tracks_below_threshold`.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be parsed.
+    async fn analyze_and_print(self, threshold: usize) -> crate::error::Result<()> {
+        let stats = self.analyze(threshold).await?;
+
+        crate::analytics::AnalysisHandler::print_analysis(&stats);
+
+        Ok(())
+    }
+}
+
+impl<T> Analyze for T
+where
+    T: FetchAndSave,
+    T::Item: crate::analytics::TrackAnalyzable,
+{
+    type Item = T::Item;
+
+    async fn do_fetch_for_analyze(self) -> crate::error::Result<Vec<Self::Item>> {
+        self.do_fetch().await
     }
 }

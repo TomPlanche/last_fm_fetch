@@ -11,7 +11,6 @@ use crate::types::TrackPlayInfo;
 
 /// File format options for saving track data
 #[derive(Debug)]
-#[allow(dead_code)]
 #[non_exhaustive]
 pub enum FileFormat {
     /// Save as JSON format with pretty printing
@@ -90,7 +89,6 @@ impl FileHandler {
     /// # Arguments
     /// * `data` - Data to save
     /// * `filename` - Filename to save as
-    #[allow(dead_code)]
     fn save_as_json<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
         let json = serde_json::to_string_pretty(data)?;
         let mut file = File::create(filename)?;
@@ -170,70 +168,6 @@ impl FileHandler {
             }
             Self::save_as_ndjson(new_data, file_path)
         }
-    }
-
-    /// Append data to an existing file.
-    ///
-    /// # Arguments
-    /// * `data` - Data to append
-    /// * `file_path` - Path to the file to append to
-    ///
-    /// # Returns
-    /// * `Result<String>` - Path of the updated file
-    ///
-    /// Append data to an existing file.
-    ///
-    /// # Arguments
-    /// * `data` - Data to append
-    /// * `file_path` - Path to the file to append to
-    ///
-    /// # Errors
-    /// * `std::io::Error` - If an I/O error occurs
-    ///
-    /// # Returns
-    /// * `Result<String>` - Path of the updated file
-    #[allow(dead_code)]
-    pub fn append<T: Serialize + for<'de> serde::Deserialize<'de> + Clone>(
-        data: &[T],
-        file_path: &str,
-    ) -> Result<String> {
-        // Determine file format from extension
-        let ext = std::path::Path::new(file_path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(str::to_ascii_lowercase);
-
-        let format = match ext.as_deref() {
-            Some("json") => FileFormat::Json,
-            Some("csv") => FileFormat::Csv,
-            Some("ndjson") => FileFormat::Ndjson,
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Unsupported file format",
-                ));
-            }
-        };
-
-        match format {
-            FileFormat::Json => {
-                // For JSON, we need to read the existing data, combine it, and write it back
-                let file = File::open(file_path)?;
-                let mut existing_data: Vec<T> = serde_json::from_reader(file)?;
-
-                existing_data.extend(data.iter().cloned());
-
-                Self::save_as_json(&existing_data, file_path)?;
-            }
-            FileFormat::Csv => {
-                crate::csv_export::append_csv_rows_dispatch(data, file_path)?;
-            }
-            FileFormat::Ndjson => {
-                Self::append_ndjson_lines(data, file_path)?;
-            }
-        }
-
-        Ok(file_path.to_string())
     }
 
     /// Save a single item to a JSON file
