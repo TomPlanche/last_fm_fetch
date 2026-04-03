@@ -1006,6 +1006,224 @@ impl TrackList<RecentTrack> {
     }
 }
 
+impl TrackList<RecentTrackExtended> {
+    /// Aggregate extended recent tracks into unique entries with computed play counts.
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::to_set`] but operates on
+    /// extended track data. Groups by `(name, artist)` pair; the representative
+    /// metadata is taken from the **most recently played** scrobble of each track.
+    ///
+    /// The returned list is sorted by `play_count` descending with 1-indexed ranks.
+    #[must_use]
+    pub fn to_set(&self) -> TrackList<ScoredTrack> {
+        let mut groups: HashMap<(String, String), (RecentTrackExtended, u32)> = HashMap::new();
+
+        for track in self {
+            let key = (track.name.clone(), track.artist.name.clone());
+            let entry = groups.entry(key).or_insert_with(|| (track.clone(), 0));
+            entry.1 += 1;
+        }
+
+        let mut scored: Vec<ScoredTrack> = groups
+            .into_values()
+            .map(|(rep, play_count)| ScoredTrack {
+                name: rep.name,
+                artist: rep.artist.name,
+                artist_mbid: rep.artist.mbid,
+                album: rep.album.name,
+                mbid: rep.mbid,
+                url: rep.url,
+                image: rep.image,
+                play_count,
+                rank: 0,
+            })
+            .collect();
+
+        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+
+        for (i, track) in scored.iter_mut().enumerate() {
+            track.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
+        }
+
+        TrackList::from(scored)
+    }
+
+    /// Aggregate extended recent tracks by artist, computing play counts.
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::top_artists`].
+    /// The returned list is sorted by play count descending with 1-indexed ranks.
+    #[must_use]
+    pub fn top_artists(&self) -> TrackList<ScoredArtist> {
+        let mut groups: HashMap<(String, String), u32> = HashMap::new();
+
+        for track in self {
+            let key = (track.artist.name.clone(), track.artist.mbid.clone());
+            *groups.entry(key).or_insert(0) += 1;
+        }
+
+        let mut scored: Vec<ScoredArtist> = groups
+            .into_iter()
+            .map(|((name, mbid), play_count)| ScoredArtist {
+                name,
+                mbid,
+                play_count,
+                rank: 0,
+            })
+            .collect();
+
+        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+
+        for (i, artist) in scored.iter_mut().enumerate() {
+            artist.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
+        }
+
+        TrackList::from(scored)
+    }
+
+    /// Aggregate extended recent tracks by album, computing play counts.
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::top_albums`].
+    /// Tracks with an empty album field are excluded. The returned list is
+    /// sorted by play count descending with 1-indexed ranks.
+    #[must_use]
+    pub fn top_albums(&self) -> TrackList<ScoredAlbum> {
+        let mut groups: HashMap<(String, String, String), u32> = HashMap::new();
+
+        for track in self {
+            if track.album.name.is_empty() {
+                continue;
+            }
+            let key = (
+                track.album.name.clone(),
+                track.album.mbid.clone(),
+                track.artist.name.clone(),
+            );
+            *groups.entry(key).or_insert(0) += 1;
+        }
+
+        let mut scored: Vec<ScoredAlbum> = groups
+            .into_iter()
+            .map(|((name, mbid, artist), play_count)| ScoredAlbum {
+                name,
+                mbid,
+                artist,
+                play_count,
+                rank: 0,
+            })
+            .collect();
+
+        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+
+        for (i, album) in scored.iter_mut().enumerate() {
+            album.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
+        }
+
+        TrackList::from(scored)
+    }
+
+    /// Count plays per hour of the day (UTC).
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::by_hour`].
+    /// Returns a fixed-size array of 24 counters indexed by UTC hour (0–23).
+    /// Currently-playing tracks (no timestamp) are excluded.
+    #[must_use]
+    pub fn by_hour(&self) -> [u32; 24] {
+        let mut counts = [0u32; 24];
+        for track in self {
+            if let Some(date) = &track.date {
+                let hour = usize::try_from(date.uts % 86_400 / 3600).unwrap_or(0);
+                counts[hour] = counts[hour].saturating_add(1);
+            }
+        }
+        counts
+    }
+
+    /// Count plays per calendar date (UTC).
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::by_date`].
+    /// Returns a [`BTreeMap`] from [`NaiveDate`] to play count, sorted chronologically.
+    /// Currently-playing tracks (no timestamp) are excluded.
+    #[must_use]
+    pub fn by_date(&self) -> BTreeMap<NaiveDate, u32> {
+        let mut counts: BTreeMap<NaiveDate, u32> = BTreeMap::new();
+        for track in self {
+            if let Some(date) = &track.date
+                && let Some(dt) = DateTime::<Utc>::from_timestamp(i64::from(date.uts), 0)
+            {
+                *counts.entry(dt.date_naive()).or_insert(0) += 1;
+            }
+        }
+        counts
+    }
+
+    /// Return the length of the longest consecutive listening-day streak.
+    ///
+    /// Identical semantics to [`TrackList<RecentTrack>::streak`].
+    #[must_use]
+    pub fn streak(&self) -> u32 {
+        let dates = self.by_date();
+        if dates.is_empty() {
+            return 0;
+        }
+
+        let sorted: Vec<NaiveDate> = dates.into_keys().collect();
+        let mut max_streak = 1u32;
+        let mut current = 1u32;
+
+        for window in sorted.windows(2) {
+            if let [prev, next] = window {
+                if next.signed_duration_since(*prev).num_days() == 1 {
+                    current += 1;
+                    if current > max_streak {
+                        max_streak = current;
+                    }
+                } else {
+                    current = 1;
+                }
+            }
+        }
+
+        max_streak
+    }
+
+    /// Return a new list with the currently-playing track removed.
+    ///
+    /// For extended tracks the currently-playing entry is identified by
+    /// `attr["nowplaying"] == "true"`. All other tracks are preserved in
+    /// their original order.
+    #[must_use]
+    pub fn without_now_playing(&self) -> Self {
+        self.iter()
+            .filter(|t| {
+                t.attr
+                    .as_ref()
+                    .is_none_or(|a| a.get("nowplaying").is_none_or(|v| v != "true"))
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Count the number of distinct artists in the list.
+    ///
+    /// Artists are matched by their exact name as returned by Last.fm.
+    #[must_use]
+    pub fn unique_artist_count(&self) -> usize {
+        self.iter()
+            .map(|t| &t.artist.name)
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+    }
+
+    /// Count the number of distinct `(track name, artist)` pairs in the list.
+    #[must_use]
+    pub fn unique_track_count(&self) -> usize {
+        self.iter()
+            .map(|t| (&t.name, &t.artist.name))
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+    }
+}
+
 // SQLITE EXPORT ==============================================================
 
 #[cfg(feature = "sqlite")]
@@ -1289,6 +1507,121 @@ mod tests {
             make_track("Song", "Artist 1", "", Some(100)),
             make_track("Song", "Artist 1", "", Some(200)), // duplicate
             make_track("Song", "Artist 2", "", Some(300)), // same name, different artist
+        ]);
+        assert_eq!(list.unique_artist_count(), 2);
+        assert_eq!(list.unique_track_count(), 2);
+    }
+
+    // ── RecentTrackExtended helpers ──────────────────────────────────────────
+
+    fn make_ext(name: &str, artist: &str, album: &str, uts: Option<u32>) -> RecentTrackExtended {
+        RecentTrackExtended {
+            artist: BaseObject {
+                name: artist.to_string(),
+                mbid: String::new(),
+                url: String::new(),
+            },
+            streamable: false,
+            image: vec![],
+            album: BaseObject {
+                name: album.to_string(),
+                mbid: String::new(),
+                url: String::new(),
+            },
+            attr: None,
+            date: uts.map(|u| Date {
+                uts: u,
+                text: String::new(),
+            }),
+            name: name.to_string(),
+            mbid: String::new(),
+            url: String::new(),
+        }
+    }
+
+    fn make_ext_now_playing(name: &str, artist: &str) -> RecentTrackExtended {
+        use std::collections::HashMap;
+        RecentTrackExtended {
+            attr: Some(HashMap::from([(
+                "nowplaying".to_string(),
+                "true".to_string(),
+            )])),
+            date: None,
+            ..make_ext(name, artist, "", None)
+        }
+    }
+
+    #[test]
+    fn test_ext_to_set() {
+        let list = TrackList::from(vec![
+            make_ext("Song A", "Artist 1", "Album", Some(300)),
+            make_ext("Song B", "Artist 1", "Album", Some(200)),
+            make_ext("Song A", "Artist 1", "Album", Some(100)),
+        ]);
+        let set = list.to_set();
+        assert_eq!(set.len(), 2);
+        let top = set.iter().find(|t| t.name == "Song A").unwrap();
+        assert_eq!(top.play_count, 2);
+        assert_eq!(top.rank, 1);
+        assert_eq!(top.artist, "Artist 1");
+    }
+
+    #[test]
+    fn test_ext_top_artists() {
+        let list = TrackList::from(vec![
+            make_ext("T1", "Radiohead", "OK Computer", Some(100)),
+            make_ext("T2", "Radiohead", "OK Computer", Some(200)),
+            make_ext("T3", "Portishead", "Dummy", Some(300)),
+        ]);
+        let artists = list.top_artists();
+        assert_eq!(artists.len(), 2);
+        assert_eq!(artists[0].name, "Radiohead");
+        assert_eq!(artists[0].play_count, 2);
+        assert_eq!(artists[0].rank, 1);
+    }
+
+    #[test]
+    fn test_ext_top_albums_excludes_empty() {
+        let list = TrackList::from(vec![
+            make_ext("T1", "Artist", "Dummy", Some(100)),
+            make_ext("T2", "Artist", "Dummy", Some(200)),
+            make_ext("T3", "Artist", "", Some(300)),
+        ]);
+        let albums = list.top_albums();
+        assert_eq!(albums.len(), 1);
+        assert_eq!(albums[0].name, "Dummy");
+        assert_eq!(albums[0].play_count, 2);
+    }
+
+    #[test]
+    fn test_ext_by_hour_and_streak() {
+        let list = TrackList::from(vec![
+            make_ext("T1", "A", "", Some(3_600)),      // 01:00 UTC
+            make_ext("T2", "A", "", Some(86_400)),     // 1970-01-02
+            make_ext("T3", "A", "", Some(86_400 * 3)), // 1970-01-04 (gap)
+        ]);
+        let hours = list.by_hour();
+        assert_eq!(hours[1], 1); // one play at 01:xx
+        assert_eq!(list.streak(), 2); // days 01+02, then gap
+    }
+
+    #[test]
+    fn test_ext_without_now_playing() {
+        let list = TrackList::from(vec![
+            make_ext("T1", "A", "", Some(100)),
+            make_ext_now_playing("Live", "A"),
+        ]);
+        let filtered = list.without_now_playing();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "T1");
+    }
+
+    #[test]
+    fn test_ext_unique_counts() {
+        let list = TrackList::from(vec![
+            make_ext("Song", "Artist 1", "", Some(100)),
+            make_ext("Song", "Artist 1", "", Some(200)),
+            make_ext("Song", "Artist 2", "", Some(300)),
         ]);
         assert_eq!(list.unique_artist_count(), 2);
         assert_eq!(list.unique_track_count(), 2);
