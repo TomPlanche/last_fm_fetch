@@ -1,6 +1,6 @@
 //! Demonstrates environment variable validation.
 
-use lastfm_client::LastFmClient;
+use lastfm_client::{LastFmClient, LimitBuilder};
 
 /// Example demonstrating environment variable validation
 ///

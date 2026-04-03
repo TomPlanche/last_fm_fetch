@@ -5,6 +5,92 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-04-03
+
+### Changed (breaking)
+
+Builder methods `limit`, `unlimited`, `fetch_and_save`, `fetch_and_save_sqlite`,
+`fetch_and_update`, `fetch_and_update_sqlite`, `analyze`, and `analyze_and_print` have moved
+from concrete implementations on each builder to shared extension traits. You must import the
+relevant trait to call these methods.
+
+```rust
+// Before (3.x)
+use lastfm_client::LastFmClient;
+client.recent_tracks("user").limit(50).fetch().await?;
+
+// After (4.0)
+use lastfm_client::{LastFmClient, LimitBuilder};
+client.recent_tracks("user").limit(50).fetch().await?;
+```
+
+| Trait | Methods | Import |
+|-------|---------|--------|
+| `LimitBuilder` | `limit`, `unlimited` | `use lastfm_client::LimitBuilder;` |
+| `FetchAndSave` | `fetch_and_save`, `fetch_and_save_sqlite` | `use lastfm_client::FetchAndSave;` |
+| `FetchAndUpdate` | `fetch_and_update`, `fetch_and_update_sqlite` | `use lastfm_client::FetchAndUpdate;` |
+| `Analyze` | `analyze`, `analyze_and_print` | `use lastfm_client::Analyze;` |
+
+All four traits are re-exported from the crate root and from a new `prelude` module.
+The recommended import is:
+
+```rust
+use lastfm_client::{LastFmClient, prelude::*};
+```
+
+### Added
+
+- `LimitBuilder` trait: single `limit_mut()` hook, default `limit(n)` and `unlimited()` — now
+  implemented on all five builder types.
+- `FetchAndSave` trait: new `latest_timestamp` hook (default `None`) lets timestamped builders
+  write a sidecar file after saving without duplicating that logic per-builder.
+- `FetchAndUpdate` trait: `fetch_and_update` default now handles NDJSON files in addition to
+  JSON and CSV.
+- `Analyze` trait: blanket impl — any builder implementing `FetchAndSave` whose item type
+  implements `TrackAnalyzable` automatically gets `analyze` and `analyze_and_print`.
+
+### Added
+
+- `on_progress(callback)` builder method is now available on all five resource builders
+  (`recent_tracks`, `loved_tracks`, `top_tracks`, `top_artists`, `top_albums`). Previously
+  it existed only on `recent_tracks`.
+- `with_progress()` builder method (requires the new `progress` feature) renders a live
+  terminal progress bar while fetching, backed by [`indicatif`](https://github.com/console-rs/indicatif).
+  Enable the feature and call `.with_progress()` before `.fetch()`:
+  ```toml
+  lastfm-client = { version = "4", features = ["progress"] }
+  ```
+  ```rust
+  let tracks = client.recent_tracks("user").with_progress().fetch().await?;
+  ```
+  The bar shows `{spinner} [{bar:40}] {pos}/{len} ({percent}%)` and finishes automatically.
+- `full` feature that enables both `sqlite` and `progress` at once:
+  ```toml
+  lastfm-client = { version = "4", features = ["full"] }
+  ```
+
+### Changed (internal)
+
+- API method strings (`"user.getrecenttracks"`, `"user.getlovedtracks"`, etc.) moved from
+  inline string literals to named constants in `src/api/constants.rs`
+  (`METHOD_RECENT_TRACKS`, `METHOD_LOVED_TRACKS`, `METHOD_TOP_TRACKS`,
+  `METHOD_TOP_ARTISTS`, `METHOD_TOP_ALBUMS`, `METHOD_USER_INFO`).
+- `src/api/recent_tracks.rs` split into a module directory (`recent_tracks/mod.rs`, `client.rs`,
+  `builder.rs`, `extended.rs`) for better organisation. Public API is unchanged.
+- Duplicate `from`/`to` date-range guard extracted to a shared `validate_date_range` helper
+  called by both `fetch()` and `fetch_extended()`. Behaviour is unchanged.
+- `fetch_and_update` logic unified under the `FetchAndUpdate::fetch_since` trait hook; the
+  concrete per-builder implementations are gone.
+
+### Removed
+
+Duplicate concrete implementations of `limit`, `unlimited`, `fetch_and_save`,
+`fetch_and_save_sqlite`, `fetch_and_update`, `fetch_and_update_sqlite`, `analyze`, and
+`analyze_and_print` have been removed from each individual builder.
+
+- `FileHandler::append` — unused public method superseded by `append_or_create_csv`, `append_or_create_ndjson`, and `prepend_json`
+- `AnalysisHandler::get_most_recent_timestamp` — unused public method superseded by the sidecar timestamp mechanism (v3.2.0)
+
 ## [3.9.0] - 2026-04-03
 
 ### Added

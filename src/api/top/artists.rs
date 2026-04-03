@@ -1,15 +1,15 @@
+use crate::api::builder_ext::{FetchAndSave, LimitBuilder};
+use crate::api::constants::METHOD_TOP_ARTISTS;
+use crate::api::fetch_utils::{Period, ProgressCallback, ResourceContainer, fetch};
 use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
-use crate::file_handler::{FileFormat, FileHandler};
 use crate::types::{TopArtist, TrackLimit, TrackList, UserTopArtists};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
 use std::fmt;
 use std::sync::Arc;
-
-use super::fetch_utils::{Period, ResourceContainer, fetch};
 
 /// Client for fetching top artists
 pub struct TopArtistsClient {
@@ -44,6 +44,7 @@ pub struct TopArtistsRequestBuilder {
     username: String,
     limit: Option<u32>,
     period: Option<Period>,
+    progress_callback: Option<ProgressCallback>,
 }
 
 impl fmt::Debug for TopArtistsRequestBuilder {
@@ -64,25 +65,22 @@ impl TopArtistsRequestBuilder {
             username,
             limit: None,
             period: None,
+            progress_callback: None,
         }
     }
 
-    /// Set the maximum number of artists to fetch
-    ///
-    /// # Arguments
-    /// * `limit` - Maximum number of artists to fetch. The Last.fm API supports fetching up to thousands of artists.
-    ///   If you need all artists, use `unlimited()` instead.
+    /// Register a progress callback invoked with `(fetched, total)` after each batch.
     #[must_use]
-    pub const fn limit(mut self, limit: u32) -> Self {
-        self.limit = Some(limit);
+    pub fn on_progress(mut self, callback: impl Fn(u32, u32) + Send + Sync + 'static) -> Self {
+        self.progress_callback = Some(Arc::new(callback));
         self
     }
 
-    /// Fetch all available artists (no limit)
+    /// Display a terminal progress bar while fetching (requires `progress` feature).
+    #[cfg(feature = "progress")]
     #[must_use]
-    pub const fn unlimited(mut self) -> Self {
-        self.limit = None;
-        self
+    pub fn with_progress(self) -> Self {
+        self.on_progress(crate::api::progress::make_progress_callback())
     }
 
     /// Set the time period for top artists
@@ -117,43 +115,6 @@ impl TopArtistsRequestBuilder {
             .map(TrackList::from)
     }
 
-    /// Fetch artists and save them to a file
-    ///
-    /// # Arguments
-    /// * `format` - The file format to save the artists in
-    /// * `filename_prefix` - Prefix for the generated filename
-    ///
-    /// # Errors
-    /// Returns an error if the HTTP request fails, response cannot be parsed, or file cannot be saved.
-    ///
-    /// # Returns
-    /// * `Result<String>` - The filename of the saved file
-    pub async fn fetch_and_save(self, format: FileFormat, filename_prefix: &str) -> Result<String> {
-        let artists = self.fetch().await?;
-        tracing::info!("Saving {} top artists to file", artists.len());
-        let filename = FileHandler::save(&artists, &format, filename_prefix)
-            .map_err(crate::error::LastFmError::Io)?;
-        Ok(filename)
-    }
-
-    /// Fetch artists and save them to a new `SQLite` database file.
-    ///
-    /// # Arguments
-    /// * `filename_prefix` - Prefix for the generated filename
-    ///
-    /// # Errors
-    /// Returns an error if the HTTP request fails, the response cannot be parsed, or the database cannot be saved.
-    ///
-    /// # Returns
-    /// * `Result<String>` - Path to the saved database file
-    #[cfg(feature = "sqlite")]
-    pub async fn fetch_and_save_sqlite(self, filename_prefix: &str) -> Result<String> {
-        let artists = self.fetch().await?;
-        tracing::info!("Saving {} top artists to SQLite", artists.len());
-        crate::file_handler::FileHandler::save_sqlite(&artists, filename_prefix)
-            .map_err(crate::error::LastFmError::Io)
-    }
-
     async fn fetch_artists<T>(
         &self,
         limit: TrackLimit,
@@ -166,12 +127,30 @@ impl TopArtistsRequestBuilder {
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
-            "user.gettopartists",
+            METHOD_TOP_ARTISTS,
             limit,
             additional_params,
-            None,
+            self.progress_callback.as_ref(),
         )
         .await
+    }
+}
+
+impl LimitBuilder for TopArtistsRequestBuilder {
+    fn limit_mut(&mut self) -> &mut Option<u32> {
+        &mut self.limit
+    }
+}
+
+impl FetchAndSave for TopArtistsRequestBuilder {
+    type Item = TopArtist;
+
+    fn resource_label() -> &'static str {
+        "top artists"
+    }
+
+    async fn do_fetch(self) -> crate::error::Result<Vec<Self::Item>> {
+        Ok(Vec::from(self.fetch().await?))
     }
 }
 

@@ -40,6 +40,27 @@ pub use config::{Config, ConfigBuilder, RateLimit};
 pub use error::{LastFmError, Result};
 pub use types::{Period, TrackLimit, TrackList};
 
+// Re-export extension traits
+pub use api::{Analyze, FetchAndSave, FetchAndUpdate, LimitBuilder};
+
+/// Convenience re-exports for the most common traits and types.
+///
+/// Import with `use lastfm_client::prelude::*;` to bring all extension traits
+/// into scope without listing them individually.
+///
+/// # Example
+/// ```no_run
+/// use lastfm_client::{LastFmClient, prelude::*};
+///
+/// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+/// let tracks = client.recent_tracks("username").limit(100).fetch().await?;
+/// # Ok(())
+/// # }
+/// ```
+pub mod prelude {
+    pub use crate::api::{Analyze, FetchAndSave, FetchAndUpdate, LimitBuilder};
+}
+
 // Re-export API clients
 pub use api::{
     LovedTracksClient, LovedTracksRequestBuilder, ProgressCallback, RecentTracksClient,

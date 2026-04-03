@@ -172,7 +172,7 @@ impl LastFmClient {
     ///
     /// # Example
     /// ```no_run
-    /// # use lastfm_client::LastFmClient;
+    /// # use lastfm_client::{LastFmClient, prelude::*};
     /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let tracks = client
     ///     .recent_tracks("username")
@@ -193,7 +193,7 @@ impl LastFmClient {
     ///
     /// # Example
     /// ```no_run
-    /// # use lastfm_client::LastFmClient;
+    /// # use lastfm_client::{LastFmClient, prelude::*};
     /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let tracks = client
     ///     .loved_tracks("username")
@@ -214,7 +214,7 @@ impl LastFmClient {
     ///
     /// # Example
     /// ```no_run
-    /// # use lastfm_client::LastFmClient;
+    /// # use lastfm_client::{LastFmClient, prelude::*};
     /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let tracks = client
     ///     .top_tracks("username")
@@ -232,7 +232,7 @@ impl LastFmClient {
     ///
     /// # Example
     /// ```no_run
-    /// # use lastfm_client::LastFmClient;
+    /// # use lastfm_client::{LastFmClient, prelude::*};
     /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let artists = client
     ///     .top_artists("username")
@@ -250,7 +250,7 @@ impl LastFmClient {
     ///
     /// # Example
     /// ```no_run
-    /// # use lastfm_client::LastFmClient;
+    /// # use lastfm_client::{LastFmClient, prelude::*};
     /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let albums = client
     ///     .top_albums("username")
@@ -291,13 +291,13 @@ impl LastFmClient {
     /// Returns an error if the request fails due to network issues or other API errors
     /// (not including "user not found" which returns `Ok(false)`)
     pub async fn user_exists(&self, username: impl Into<String>) -> Result<bool> {
-        use crate::api::constants::BASE_URL;
+        use crate::api::constants::{BASE_URL, METHOD_USER_INFO};
         use crate::error::LastFmError;
         use crate::url_builder::{QueryParams, Url};
 
         let username = username.into();
         let mut params = QueryParams::new();
-        params.insert("method".to_string(), "user.getinfo".to_string());
+        params.insert("method".to_string(), METHOD_USER_INFO.to_string());
         params.insert("user".to_string(), username);
         params.insert("api_key".to_string(), self.config.api_key().to_string());
         params.insert("format".to_string(), "json".to_string());

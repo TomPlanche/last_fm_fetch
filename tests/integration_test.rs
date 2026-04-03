@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use lastfm_client::client::MockClient;
-use lastfm_client::{ConfigBuilder, LastFmClient};
+use lastfm_client::{ConfigBuilder, LastFmClient, LimitBuilder};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -855,7 +855,6 @@ async fn test_date_range_validation_extended() {
     let result = client
         .recent_tracks("testuser")
         .between(from, to)
-        .extended(true)
         .fetch_extended()
         .await;
 

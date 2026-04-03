@@ -2,6 +2,45 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v4.0
+
+Builder methods are now provided by shared extension traits instead of being duplicated on each
+builder. This removes ~400 lines of boilerplate and makes the API consistent across all five
+resource types.
+
+You need to import the relevant trait to use the methods:
+
+| Trait | Methods |
+|-------|---------|
+| `LimitBuilder` | `.limit(n)`, `.unlimited()` |
+| `FetchAndSave` | `.fetch_and_save(format, prefix)`, `.fetch_and_save_sqlite(prefix)` |
+| `FetchAndUpdate` | `.fetch_and_update(path)`, `.fetch_and_update_sqlite(path)` |
+| `Analyze` | `.analyze(threshold)`, `.analyze_and_print(threshold)` |
+
+```rust
+use lastfm_client::{LastFmClient, prelude::*};
+
+let client = LastFmClient::new()?;
+
+// limit / fetch_and_save / fetch_and_update all require the trait in scope
+let path = client
+    .recent_tracks("username")
+    .limit(500)
+    .fetch_and_save(FileFormat::Json, "scrobbles")
+    .await?;
+
+let new_count = client
+    .recent_tracks("username")
+    .fetch_and_update(&path)
+    .await?;
+
+let stats = client
+    .recent_tracks("username")
+    .limit(1000)
+    .analyze(5)
+    .await?;
+```
+
 ## What's new in v3.9
 
 Load data back from a `SQLite` database produced by `fetch_and_save_sqlite` or
@@ -26,10 +65,10 @@ Supported types: `RecentTrack`, `RecentTrackExtended`, `LovedTrack`, `TopTrack`,
 > methods work correctly on loaded data.
 
 
-## What's new in v3.8
+## What's new in v3.8 and earlier
 
 **`impl TrackList<RecentTrackExtended>`**: the same aggregation helpers as
-`TrackList<RecentTrack>` (v3.7) — `to_set`, `top_artists`, `top_albums`, `by_hour`,
+`TrackList<RecentTrack>` — `to_set`, `top_artists`, `top_albums`, `by_hour`,
 `by_date`, `streak`, `without_now_playing`, `unique_artist_count`, `unique_track_count`.
 Use `.fetch_extended()` instead of `.fetch()`.
 
@@ -54,18 +93,24 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.8"
+lastfm-client = "4.0"
 ```
 
 ### Optional Features
 
 | Feature | Description |
 |---------|-------------|
-| `sqlite` | SQLite export via `rusqlite` (bundled SQLite, no system dependency required) |
+| `sqlite`   | SQLite export via `rusqlite` (bundled SQLite, no system dependency required) |
+| `progress` | Built-in terminal progress bar via `indicatif` — adds `.with_progress()` to all builders |
+| `full`     | Enables both `sqlite` and `progress` |
 
 ```toml
 [dependencies]
-lastfm-client = { version = "3.8", features = ["sqlite"] }
+# All optional features
+lastfm-client = { version = "4.0", features = ["full"] }
+
+# Individual features
+lastfm-client = { version = "4.0", features = ["sqlite", "progress"] }
 ```
 
 ## Features
@@ -111,6 +156,7 @@ Runnable programs live in [`examples/`](examples/). Set `LAST_FM_API_KEY` (and o
 |---------|---------|----------------|
 | `scrobbles_file_workflow` | `cargo run --example scrobbles_file_workflow` | `fetch_and_save` / `fetch_and_update` (JSON, CSV, NDJSON), `FileHandler::load` / `load_ndjson`, `TrackList` aggregations, extended saves, `analyze`, `check_currently_playing`, `on_progress`, top charts + loved tracks |
 | `scrobbles_sqlite` | `cargo run --example scrobbles_sqlite --features sqlite` | `fetch_and_save_sqlite`, `fetch_and_update_sqlite`, `FileHandler::load_sqlite` |
+| `with_progress` | `cargo run --example with_progress --features progress` | `with_progress()` terminal progress bar |
 | `new_api_demo` | `cargo run --example new_api_demo` | Basic recent-track builders |
 | `advanced_features` | `cargo run --example advanced_features` | Retry, rate limiting, config |
 | `loved_tracks_demo` | `cargo run --example loved_tracks_demo` | Loved + recent via lower-level clients |
@@ -122,7 +168,7 @@ Runnable programs live in [`examples/`](examples/). Set `LAST_FM_API_KEY` (and o
 ### Quick Start
 
 ```rust
-use lastfm_client::LastFmClient;
+use lastfm_client::{LastFmClient, prelude::*};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -283,7 +329,7 @@ println!("{new_count} new scrobbles inserted");
 Enable the `sqlite` feature in `Cargo.toml`:
 
 ```toml
-lastfm-client = { version = "3.8", features = ["sqlite"] }
+lastfm-client = { version = "4.0", features = ["sqlite"] }
 ```
 
 All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. Extended recent tracks have their own pair of methods: `fetch_extended_and_save_sqlite(prefix)` and `fetch_extended_and_update_sqlite(db_path)`. The databases can be queried with any SQLite tool:
@@ -306,32 +352,32 @@ Schema overview:
 
 ### Progress Tracking
 
-For large libraries, `.on_progress()` fires after the total is known (`fetched = 0`) and then after each batch (~5000 tracks):
+**Built-in progress bar** (requires the `progress` feature):
+
+```toml
+lastfm-client = { version = "4", features = ["progress"] }
+```
 
 ```rust
-use indicatif::{ProgressBar, ProgressStyle};
+// One call — indicatif renders the bar automatically
+let tracks = client
+    .recent_tracks("username")
+    .unlimited()
+    .with_progress()
+    .fetch()
+    .await?;
+```
 
-let pb = ProgressBar::new(0);
-pb.set_style(
-    ProgressStyle::default_bar()
-        .template("{spinner} [{elapsed_precise}] [{bar:40}] {pos}/{len} tracks ({eta})")?
-        .progress_chars("##-"),
-);
+**Custom callback** — `.on_progress(callback)` fires after the total is known
+(`fetched = 0`) and then after each batch (~5000 tracks):
 
-let pb_clone = pb.clone();
+```rust
 let filename = client
     .recent_tracks("username")
     .unlimited()
-    .on_progress(move |fetched, total| {
-        if pb_clone.length() == Some(0) {
-            pb_clone.set_length(u64::from(total));
-        }
-        pb_clone.set_position(u64::from(fetched));
-    })
+    .on_progress(|fetched, total| println!("{fetched}/{total}"))
     .fetch_extended_and_save(FileFormat::Json, "all_tracks")
     .await?;
-
-pb.finish_and_clear();
 println!("Saved to {filename}");
 ```
 
@@ -409,6 +455,14 @@ println!(
 let loved_tracks = client
     .loved_tracks("username")
     .limit(50)
+    .fetch()
+    .await?;
+
+// With progress tracking
+let all_loved = client
+    .loved_tracks("username")
+    .unlimited()
+    .on_progress(|fetched, total| println!("{fetched}/{total}"))
     .fetch()
     .await?;
 
@@ -617,6 +671,7 @@ client.recent_tracks("username")
 client.loved_tracks("username")
     .limit(u32)              // Limit number of tracks
     .unlimited()             // Fetch all available tracks
+    .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
     .fetch()                 // Execute and get TrackList<LovedTrack>
     .analyze(usize)          // Analyze tracks and get statistics
     .analyze_and_print(usize) // Analyze and print statistics
@@ -634,6 +689,7 @@ client.top_tracks("username")
     .limit(u32)              // Limit number of tracks
     .unlimited()             // Fetch all available tracks
     .period(Period)          // Time period filter
+    .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
     .fetch()                 // Execute and get TrackList<TopTrack>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
@@ -646,6 +702,7 @@ client.top_artists("username")
     .limit(u32)              // Limit number of artists
     .unlimited()             // Fetch all available artists
     .period(Period)          // Time period filter
+    .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
     .fetch()                 // Execute and get TrackList<TopArtist>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
@@ -658,6 +715,7 @@ client.top_albums("username")
     .limit(u32)              // Limit number of albums
     .unlimited()             // Fetch all available albums
     .period(Period)          // Time period filter
+    .on_progress(|fetched, total| { ... }) // Progress callback (fetched, total)
     .fetch()                 // Execute and get TrackList<TopAlbum>
     .fetch_and_save(format, prefix)    // Fetch and save to file
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
@@ -753,8 +811,13 @@ src/
 │   ├── retry.rs             # Retry logic with backoff strategies
 │   └── rate_limiter.rs      # Rate limiting with sliding window
 ├── api/
+│   ├── builder_ext.rs       # Shared extension traits (LimitBuilder, FetchAndSave, …)
 │   ├── fetch_utils.rs       # Generic pagination with ResourceContainer trait
-│   ├── recent_tracks.rs     # RecentTracksClient with builder pattern
+│   ├── recent_tracks/
+│   │   ├── mod.rs           # Re-exports + ResourceContainer impls
+│   │   ├── client.rs        # RecentTracksClient
+│   │   ├── builder.rs       # RecentTracksRequestBuilder + core methods + trait impls
+│   │   └── extended.rs      # fetch_extended / fetch_extended_and_* methods
 │   ├── loved_tracks.rs      # LovedTracksClient with builder pattern
 │   ├── top_tracks.rs        # TopTracksClient with builder pattern
 │   ├── top_artists.rs       # TopArtistsClient with builder pattern

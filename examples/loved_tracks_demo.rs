@@ -1,5 +1,6 @@
 //! Demonstrates fetching loved tracks.
 
+use lastfm_client::LimitBuilder;
 use lastfm_client::api::{LovedTracksClient, RecentTracksClient};
 use lastfm_client::client::ReqwestClient;
 use lastfm_client::config::ConfigBuilder;

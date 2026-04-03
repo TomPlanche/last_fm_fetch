@@ -4,10 +4,9 @@ use std::{collections::HashMap, path::Path};
 
 use serde::de::DeserializeOwned;
 
-use crate::types::{LovedTrack, RecentTrack, Timestamped};
+use crate::types::{LovedTrack, RecentTrack};
 
 /// Trait for types that can be analyzed as tracks
-#[allow(dead_code)]
 pub trait TrackAnalyzable {
     /// Get the artist name from the track
     fn get_artist_name(&self) -> String;
@@ -189,33 +188,6 @@ impl AnalysisHandler {
             "\nTracks above threshold: {}",
             stats.tracks_above_threshold.len()
         );
-    }
-
-    /// Get the most recent timestamp from a JSON file.
-    ///
-    /// # Arguments
-    /// * `file_path` - Path to the JSON file
-    ///
-    /// # Errors
-    /// * `std::io::Error` - If the file cannot be opened or read
-    /// * `LastFmError::Io` - If the file cannot be opened
-    /// * `LastFmError::Parse` - If the JSON cannot be deserialized
-    ///
-    /// # Returns
-    /// * `Option<i64>` - Most recent timestamp
-    #[allow(dead_code)]
-    pub fn get_most_recent_timestamp<T: DeserializeOwned + Timestamped>(
-        file_path: &Path,
-    ) -> crate::error::Result<Option<i64>> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-        let tracks: Vec<T> = serde_json::from_reader(reader)?;
-
-        Ok(tracks
-            .iter()
-            .filter_map(Timestamped::get_timestamp)
-            .map(i64::from)
-            .max())
     }
 }
 
