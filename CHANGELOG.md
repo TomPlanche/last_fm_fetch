@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-04-03
+
+### Added
+
+Local aggregation and analysis methods on `TrackList<RecentTrack>` — a complement to the Top Tracks / Top Artists / Top Albums API endpoints for any custom date range.
+
+#### New types
+
+- **`ScoredTrack`** — a track with a locally-computed `play_count` and `rank`; output of `to_set()`
+- **`ScoredArtist`** — an artist with a locally-computed `play_count` and `rank`; output of `top_artists()`
+- **`ScoredAlbum`** — an album with a locally-computed `play_count` and `rank`; output of `top_albums()`
+
+All three types implement `Display`, `Ord` (by `play_count`), `Eq`, `Serialize`, and `Clone`. They are re-exported from the crate root.
+
+#### New methods on `TrackList<RecentTrack>`
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `to_set()` | `TrackList<ScoredTrack>` | Deduplicate by `(name, artist)` and count plays |
+| `top_artists()` | `TrackList<ScoredArtist>` | Group by artist and count plays |
+| `top_albums()` | `TrackList<ScoredAlbum>` | Group by `(album, artist)` and count plays; empty-album tracks excluded |
+| `by_hour()` | `[u32; 24]` | Play counts per UTC hour (index = hour 0–23) |
+| `by_date()` | `BTreeMap<NaiveDate, u32>` | Play counts per calendar date (UTC), sorted chronologically |
+| `streak()` | `u32` | Longest consecutive listening-day streak |
+| `without_now_playing()` | `TrackList<RecentTrack>` | Copy of the list without the currently-playing track |
+| `unique_artist_count()` | `usize` | Number of distinct artist names |
+| `unique_track_count()` | `usize` | Number of distinct `(name, artist)` pairs |
+
+All methods take `&self` (non-consuming) and are `#[must_use]`.
+
 ## [3.6.0] - 2026-04-01
 
 ### Added
