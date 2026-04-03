@@ -49,6 +49,7 @@ pub use sqlite::SqliteExportable;
 
 // Re-export commonly used types
 pub use types::{
-    LovedTrack, RecentTrack, RecentTrackExtended, TopTrack, UserLovedTracks, UserRecentTracks,
-    UserRecentTracksExtended, UserTopAlbums, UserTopArtists, UserTopTracks,
+    LovedTrack, RecentTrack, RecentTrackExtended, ScoredAlbum, ScoredArtist, ScoredTrack, TopTrack,
+    UserLovedTracks, UserRecentTracks, UserRecentTracksExtended, UserTopAlbums, UserTopArtists,
+    UserTopTracks,
 };

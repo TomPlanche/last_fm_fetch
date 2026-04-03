@@ -2,6 +2,33 @@
 
 A modern, async Rust library for fetching and analyzing Last.fm user data with ease.
 
+## What's new in v3.7
+
+Local aggregation methods on `TrackList<RecentTrack>` — compute top tracks, artists, and albums for **any custom date range** without being limited to the API's fixed period options (`7day`, `1month`, etc.).
+
+```rust
+let recent = client
+    .recent_tracks("username")
+    .between(two_weeks_ago, now)
+    .fetch()
+    .await?;
+
+// Top tracks for the custom period
+let top_tracks  = recent.to_set();       // TrackList<ScoredTrack>
+let top_artists = recent.top_artists();  // TrackList<ScoredArtist>
+let top_albums  = recent.top_albums();   // TrackList<ScoredAlbum>
+
+// Listening pattern analysis
+let hours  = recent.by_hour();  // [u32; 24]  — plays per UTC hour
+let dates  = recent.by_date();  // BTreeMap<NaiveDate, u32>
+let streak = recent.streak();   // u32  — longest consecutive-day streak
+
+// Utilities
+let clean          = recent.without_now_playing();  // drops currently-playing track
+let artist_count   = recent.unique_artist_count();  // distinct artist names
+let track_count    = recent.unique_track_count();   // distinct (name, artist) pairs
+```
+
 ## What's new in v3.6
 
 - **`TrackList<T>`**: All `fetch()` methods now return `TrackList<T>` instead of `Vec<T>`. `TrackList<T>` implements `Display` — items are printed in descending order (most recent first for time-stamped types, most played first for playcount types). It derefs to `Vec<T>` so all existing code continues to work unchanged.
@@ -30,7 +57,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lastfm-client = "3.6"
+lastfm-client = "3.7"
 ```
 
 ### Optional Features
@@ -41,7 +68,7 @@ lastfm-client = "3.6"
 
 ```toml
 [dependencies]
-lastfm-client = { version = "3.6", features = ["sqlite"] }
+lastfm-client = { version = "3.7", features = ["sqlite"] }
 ```
 
 ## Features
@@ -245,7 +272,7 @@ println!("{new_count} new scrobbles inserted");
 Enable the `sqlite` feature in `Cargo.toml`:
 
 ```toml
-lastfm-client = { version = "3.6", features = ["sqlite"] }
+lastfm-client = { version = "3.7", features = ["sqlite"] }
 ```
 
 All five resource types support `fetch_and_save_sqlite(prefix)`. Recent tracks and loved tracks additionally support `fetch_and_update_sqlite(db_path)` for incremental updates. Extended recent tracks have their own pair of methods: `fetch_extended_and_save_sqlite(prefix)` and `fetch_extended_and_update_sqlite(db_path)`. The databases can be queried with any SQLite tool:
@@ -295,6 +322,63 @@ let filename = client
 
 pb.finish_and_clear();
 println!("Saved to {filename}");
+```
+
+### Aggregating Recent Tracks (custom periods)
+
+The Top Tracks / Top Artists / Top Albums API only supports fixed periods (`7day`, `1month`, etc.). Use these methods on a fetched `TrackList<RecentTrack>` to compute the same views for **any date range**:
+
+```rust
+use chrono::{Duration, Utc};
+
+let now = Utc::now();
+let two_weeks_ago = now - Duration::weeks(2);
+
+let recent = client
+    .recent_tracks("username")
+    .between(two_weeks_ago.timestamp(), now.timestamp())
+    .fetch()
+    .await?;
+
+// Top tracks — equivalent to user.gettoptracks for a custom period
+let top_tracks = recent.to_set();
+println!("{top_tracks}"); // sorted by play count
+
+// Top artists
+let top_artists = recent.top_artists();
+for artist in &top_artists {
+    println!("{artist}"); // "#1 Radiohead (42 plays)"
+}
+
+// Top albums (tracks without album info are excluded)
+let top_albums = recent.top_albums();
+
+// Listening clock — plays per UTC hour (index 0 = midnight)
+let hours = recent.by_hour();
+let (peak_hour, peak_count) = hours
+    .iter()
+    .enumerate()
+    .max_by_key(|(_, &c)| c)
+    .map(|(h, &c)| (h, c))
+    .unwrap_or((0, 0));
+println!("Most active at {peak_hour}:00 UTC ({peak_count} plays)");
+
+// Plays per calendar date — useful for heatmaps
+let by_date = recent.by_date(); // BTreeMap<NaiveDate, u32>
+
+// Longest consecutive listening-day streak
+let streak = recent.streak();
+println!("Best streak: {streak} day(s)");
+
+// Remove currently-playing track before processing
+let scrobbles = recent.without_now_playing();
+
+// Distinct counts
+println!(
+    "{} unique artists, {} unique tracks",
+    recent.unique_artist_count(),
+    recent.unique_track_count(),
+);
 ```
 
 ### Fetching Loved Tracks
@@ -493,6 +577,17 @@ client.recent_tracks("username")
     .fetch_and_update_sqlite(db_path)               // Fetch only new tracks and insert into .db -> usize
     .fetch_extended_and_save_sqlite(prefix)         // Fetch extended and save to a new .db file -> String
     .fetch_extended_and_update_sqlite(db_path)      // Fetch only new extended tracks and insert -> usize
+    // On a fetched TrackList<RecentTrack>:
+    // (all methods take &self and return new values — non-consuming)
+    // recent.to_set()               -> TrackList<ScoredTrack>   (deduplicated with play counts)
+    // recent.top_artists()          -> TrackList<ScoredArtist>  (grouped by artist)
+    // recent.top_albums()           -> TrackList<ScoredAlbum>   (grouped by album+artist)
+    // recent.by_hour()              -> [u32; 24]                (plays per UTC hour)
+    // recent.by_date()              -> BTreeMap<NaiveDate, u32> (plays per calendar date)
+    // recent.streak()               -> u32                      (longest consecutive-day streak)
+    // recent.without_now_playing()  -> TrackList<RecentTrack>   (drop currently-playing track)
+    // recent.unique_artist_count()  -> usize
+    // recent.unique_track_count()   -> usize
 ```
 
 ### Loved Tracks
