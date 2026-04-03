@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-04-03
+
+### Added
+
+`impl TrackList<RecentTrackExtended>` — the same local aggregation and analysis helpers as
+`TrackList<RecentTrack>` (v3.7), for data from `.fetch_extended()` / extended API responses.
+
+#### New methods on `TrackList<RecentTrackExtended>`
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `to_set()` | `TrackList<ScoredTrack>` | Deduplicate by `(name, artist)` and count plays |
+| `top_artists()` | `TrackList<ScoredArtist>` | Group by artist and count plays |
+| `top_albums()` | `TrackList<ScoredAlbum>` | Group by `(album, artist)` and count plays; empty-album tracks excluded |
+| `by_hour()` | `[u32; 24]` | Play counts per UTC hour (index = hour 0–23) |
+| `by_date()` | `BTreeMap<NaiveDate, u32>` | Play counts per calendar date (UTC), sorted chronologically |
+| `streak()` | `u32` | Longest consecutive listening-day streak |
+| `without_now_playing()` | `TrackList<RecentTrackExtended>` | Copy of the list without the currently-playing track |
+| `unique_artist_count()` | `usize` | Number of distinct artist names |
+| `unique_track_count()` | `usize` | Number of distinct `(name, artist)` pairs |
+
+All methods take `&self` (non-consuming) and are `#[must_use]`.
+
+Implementation matches `RecentTrack` where possible; extended rows use `artist.name` /
+`album.name` (`BaseObject`) instead of `artist.text` / `album.text` (`BaseMbidText`), and
+the now-playing flag is read from `attr["nowplaying"]` when `attr` is a `HashMap`.
+
 ## [3.7.0] - 2026-04-03
 
 ### Added

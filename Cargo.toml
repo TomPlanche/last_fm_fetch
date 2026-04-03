@@ -1,6 +1,6 @@
 [package]
 name = "lastfm-client"
-version = "3.7.0"
+version = "3.8.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
