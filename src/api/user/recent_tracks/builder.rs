@@ -17,7 +17,7 @@ use std::sync::Arc;
 ///
 /// # Errors
 /// Returns `LastFmError::Config` if `to <= from`.
-pub(in crate::api::recent_tracks) fn validate_date_range(
+pub(in crate::api::user::recent_tracks) fn validate_date_range(
     from: Option<i64>,
     to: Option<i64>,
 ) -> crate::error::Result<()> {
@@ -33,13 +33,13 @@ pub(in crate::api::recent_tracks) fn validate_date_range(
 
 /// Builder for recent tracks requests.
 pub struct RecentTracksRequestBuilder {
-    pub(in crate::api::recent_tracks) http: Arc<dyn HttpClient>,
-    pub(in crate::api::recent_tracks) config: Arc<Config>,
-    pub(in crate::api::recent_tracks) username: String,
-    pub(in crate::api::recent_tracks) limit: Option<u32>,
-    pub(in crate::api::recent_tracks) from: Option<i64>,
-    pub(in crate::api::recent_tracks) to: Option<i64>,
-    pub(in crate::api::recent_tracks) progress_callback: Option<ProgressCallback>,
+    pub(in crate::api::user::recent_tracks) http: Arc<dyn HttpClient>,
+    pub(in crate::api::user::recent_tracks) config: Arc<Config>,
+    pub(in crate::api::user::recent_tracks) username: String,
+    pub(in crate::api::user::recent_tracks) limit: Option<u32>,
+    pub(in crate::api::user::recent_tracks) from: Option<i64>,
+    pub(in crate::api::user::recent_tracks) to: Option<i64>,
+    pub(in crate::api::user::recent_tracks) progress_callback: Option<ProgressCallback>,
 }
 
 impl fmt::Debug for RecentTracksRequestBuilder {
@@ -54,12 +54,8 @@ impl fmt::Debug for RecentTracksRequestBuilder {
 }
 
 impl RecentTracksRequestBuilder {
-    /// Create a new builder (called by `RecentTracksClient::builder`).
-    pub(in crate::api::recent_tracks) fn new(
-        http: Arc<dyn HttpClient>,
-        config: Arc<Config>,
-        username: String,
-    ) -> Self {
+    /// Create a new builder.
+    pub(crate) fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
             config,
@@ -174,7 +170,7 @@ impl RecentTracksRequestBuilder {
     }
 
     /// Build the base query parameters from the builder state.
-    pub(in crate::api::recent_tracks) fn build_params(&self) -> QueryParams {
+    pub(in crate::api::user::recent_tracks) fn build_params(&self) -> QueryParams {
         let mut params = QueryParams::new();
 
         if let Some(from_timestamp) = self.from {

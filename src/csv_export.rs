@@ -27,30 +27,39 @@ fn json_value<T: Serialize>(data: &[T]) -> Result<serde_json::Value> {
 
 pub(crate) fn save_as_csv_dispatch<T: Serialize>(data: &[T], filename: &str) -> Result<()> {
     let v = json_value(data)?;
+
     if let Ok(tracks) = serde_json::from_value::<Vec<RecentTrack>>(v.clone()) {
         return write_recent_tracks_csv(&tracks, filename, true);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<RecentTrackExtended>>(v.clone()) {
         return write_recent_tracks_extended_csv(&tracks, filename, true);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<LovedTrack>>(v.clone()) {
         return write_loved_tracks_csv(&tracks, filename, true);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<TopTrack>>(v.clone()) {
         return write_top_tracks_csv(&tracks, filename, true);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<TopArtist>>(v.clone()) {
         return write_top_artists_csv(&rows, filename, true);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<TopAlbum>>(v.clone()) {
         return write_top_albums_csv(&rows, filename, true);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredTrack>>(v.clone()) {
         return write_scored_tracks_csv(&rows, filename, true);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredArtist>>(v.clone()) {
         return write_scored_artists_csv(&rows, filename, true);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredAlbum>>(v) {
         return write_scored_albums_csv(&rows, filename, true);
     }
@@ -60,30 +69,39 @@ pub(crate) fn save_as_csv_dispatch<T: Serialize>(data: &[T], filename: &str) -> 
 
 pub(crate) fn append_csv_rows_dispatch<T: Serialize>(data: &[T], file_path: &str) -> Result<()> {
     let v = json_value(data)?;
+
     if let Ok(tracks) = serde_json::from_value::<Vec<RecentTrack>>(v.clone()) {
         return write_recent_tracks_csv(&tracks, file_path, false);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<RecentTrackExtended>>(v.clone()) {
         return write_recent_tracks_extended_csv(&tracks, file_path, false);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<LovedTrack>>(v.clone()) {
         return write_loved_tracks_csv(&tracks, file_path, false);
     }
+
     if let Ok(tracks) = serde_json::from_value::<Vec<TopTrack>>(v.clone()) {
         return write_top_tracks_csv(&tracks, file_path, false);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<TopArtist>>(v.clone()) {
         return write_top_artists_csv(&rows, file_path, false);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<TopAlbum>>(v.clone()) {
         return write_top_albums_csv(&rows, file_path, false);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredTrack>>(v.clone()) {
         return write_scored_tracks_csv(&rows, file_path, false);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredArtist>>(v.clone()) {
         return write_scored_artists_csv(&rows, file_path, false);
     }
+
     if let Ok(rows) = serde_json::from_value::<Vec<ScoredAlbum>>(v) {
         return write_scored_albums_csv(&rows, file_path, false);
     }

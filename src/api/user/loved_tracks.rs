@@ -7,35 +7,9 @@ use serde::de::DeserializeOwned;
 use std::fmt;
 use std::sync::Arc;
 
-use super::builder_ext::{FetchAndSave, FetchAndUpdate, LimitBuilder};
-use super::constants::METHOD_LOVED_TRACKS;
-use super::fetch_utils::{ProgressCallback, ResourceContainer, fetch};
-
-/// Client for fetching loved tracks
-pub struct LovedTracksClient {
-    http: Arc<dyn HttpClient>,
-    config: Arc<Config>,
-}
-
-impl fmt::Debug for LovedTracksClient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LovedTracksClient")
-            .field("config", &self.config)
-            .finish_non_exhaustive()
-    }
-}
-
-impl LovedTracksClient {
-    /// Create a new loved tracks client
-    pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
-        Self { http, config }
-    }
-
-    /// Create a builder for loved tracks requests
-    pub fn builder(&self, username: impl Into<String>) -> LovedTracksRequestBuilder {
-        LovedTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
-    }
-}
+use crate::api::builder_ext::{FetchAndSave, FetchAndUpdate, LimitBuilder};
+use crate::api::constants::METHOD_LOVED_TRACKS;
+use crate::api::fetch_utils::{ProgressCallback, ResourceContainer, fetch};
 
 /// Builder for loved tracks requests
 pub struct LovedTracksRequestBuilder {
@@ -56,7 +30,7 @@ impl fmt::Debug for LovedTracksRequestBuilder {
 }
 
 impl LovedTracksRequestBuilder {
-    fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
+    pub(crate) fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
             config,

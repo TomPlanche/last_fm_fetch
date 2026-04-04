@@ -1,44 +1,18 @@
 use crate::api::builder_ext::{FetchAndSave, LimitBuilder};
-use crate::api::constants::METHOD_TOP_ARTISTS;
+use crate::api::constants::METHOD_TOP_TRACKS;
 use crate::api::fetch_utils::{Period, ProgressCallback, ResourceContainer, fetch};
 use crate::client::HttpClient;
 use crate::config::Config;
 use crate::error::Result;
-use crate::types::{TopArtist, TrackLimit, TrackList, UserTopArtists};
+use crate::types::{TopTrack, TrackLimit, TrackList, UserTopTracks};
 use crate::url_builder::QueryParams;
 
 use serde::de::DeserializeOwned;
 use std::fmt;
 use std::sync::Arc;
 
-/// Client for fetching top artists
-pub struct TopArtistsClient {
-    http: Arc<dyn HttpClient>,
-    config: Arc<Config>,
-}
-
-impl fmt::Debug for TopArtistsClient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TopArtistsClient")
-            .field("config", &self.config)
-            .finish_non_exhaustive()
-    }
-}
-
-impl TopArtistsClient {
-    /// Create a new top artists client
-    pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
-        Self { http, config }
-    }
-
-    /// Create a builder for top artists requests
-    pub fn builder(&self, username: impl Into<String>) -> TopArtistsRequestBuilder {
-        TopArtistsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
-    }
-}
-
-/// Builder for top artists requests
-pub struct TopArtistsRequestBuilder {
+/// Builder for top tracks requests
+pub struct TopTracksRequestBuilder {
     http: Arc<dyn HttpClient>,
     config: Arc<Config>,
     username: String,
@@ -47,9 +21,9 @@ pub struct TopArtistsRequestBuilder {
     progress_callback: Option<ProgressCallback>,
 }
 
-impl fmt::Debug for TopArtistsRequestBuilder {
+impl fmt::Debug for TopTracksRequestBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TopArtistsRequestBuilder")
+        f.debug_struct("TopTracksRequestBuilder")
             .field("username", &self.username)
             .field("limit", &self.limit)
             .field("period", &self.period)
@@ -57,8 +31,8 @@ impl fmt::Debug for TopArtistsRequestBuilder {
     }
 }
 
-impl TopArtistsRequestBuilder {
-    fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
+impl TopTracksRequestBuilder {
+    pub(crate) fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
             config,
@@ -83,23 +57,34 @@ impl TopArtistsRequestBuilder {
         self.on_progress(crate::api::progress::make_progress_callback())
     }
 
-    /// Set the time period for top artists
+    /// Set the time period for top tracks
     ///
     /// # Arguments
-    /// * `period` - The time range to calculate top artists over. Use `Period::Overall` for all-time,
+    /// * `period` - The time range to calculate top tracks over. Use `Period::Overall` for all-time,
     ///   `Period::Week` for last 7 days, `Period::Month` for last 30 days, etc.
     ///   If not set, defaults to the Last.fm API's default behavior (typically overall).
+    ///
+    /// # Example
+    /// ```ignore
+    /// use lastfm_client::api::Period;
+    ///
+    /// let tracks = client.top_tracks("username")
+    ///     .period(Period::Month)
+    ///     .limit(50)
+    ///     .fetch()
+    ///     .await?;
+    /// ```
     #[must_use]
     pub const fn period(mut self, period: Period) -> Self {
         self.period = Some(period);
         self
     }
 
-    /// Fetch the artists
+    /// Fetch the tracks
     ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be parsed.
-    pub async fn fetch(self) -> Result<TrackList<TopArtist>> {
+    pub async fn fetch(self) -> Result<TrackList<TopTrack>> {
         let mut params = QueryParams::new();
 
         if let Some(period) = self.period {
@@ -110,24 +95,24 @@ impl TopArtistsRequestBuilder {
             .limit
             .map_or(TrackLimit::Unlimited, TrackLimit::Limited);
 
-        self.fetch_artists::<UserTopArtists>(limit, params)
+        self.fetch_tracks::<UserTopTracks>(limit, params)
             .await
             .map(TrackList::from)
     }
 
-    async fn fetch_artists<T>(
+    async fn fetch_tracks<T>(
         &self,
         limit: TrackLimit,
         additional_params: QueryParams,
-    ) -> Result<Vec<TopArtist>>
+    ) -> Result<Vec<TopTrack>>
     where
-        T: DeserializeOwned + ResourceContainer<ItemType = TopArtist>,
+        T: DeserializeOwned + ResourceContainer<ItemType = TopTrack>,
     {
-        fetch::<TopArtist, T>(
+        fetch::<TopTrack, T>(
             self.http.clone(),
             self.config.clone(),
             self.username.clone(),
-            METHOD_TOP_ARTISTS,
+            METHOD_TOP_TRACKS,
             limit,
             additional_params,
             self.progress_callback.as_ref(),
@@ -136,17 +121,17 @@ impl TopArtistsRequestBuilder {
     }
 }
 
-impl LimitBuilder for TopArtistsRequestBuilder {
+impl LimitBuilder for TopTracksRequestBuilder {
     fn limit_mut(&mut self) -> &mut Option<u32> {
         &mut self.limit
     }
 }
 
-impl FetchAndSave for TopArtistsRequestBuilder {
-    type Item = TopArtist;
+impl FetchAndSave for TopTracksRequestBuilder {
+    type Item = TopTrack;
 
     fn resource_label() -> &'static str {
-        "top artists"
+        "top tracks"
     }
 
     async fn do_fetch(self) -> crate::error::Result<Vec<Self::Item>> {
@@ -154,14 +139,14 @@ impl FetchAndSave for TopArtistsRequestBuilder {
     }
 }
 
-impl ResourceContainer for UserTopArtists {
-    type ItemType = TopArtist;
+impl ResourceContainer for UserTopTracks {
+    type ItemType = TopTrack;
 
     fn total(&self) -> u32 {
-        self.topartists.attr.total
+        self.toptracks.attr.total
     }
 
     fn items(self) -> Vec<Self::ItemType> {
-        self.topartists.artist
+        self.toptracks.track
     }
 }
