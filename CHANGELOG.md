@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.0] - 2026-04-03
+## [4.0.0] - 2026-04-04
 
 ### Changed (breaking)
 
@@ -38,6 +38,27 @@ The recommended import is:
 use lastfm_client::{LastFmClient, prelude::*};
 ```
 
+**`XClient` intermediate types removed from the public API.**
+`LovedTracksClient`, `RecentTracksClient`, `TopTracksClient`, `TopArtistsClient`,
+and `TopAlbumsClient` are no longer exported from the crate root.
+These types existed only as factory objects; use `LastFmClient` directly:
+
+```rust
+// Before (3.x)
+use lastfm_client::api::LovedTracksClient;
+let client = LovedTracksClient::new(http, config);
+let tracks = client.builder("user").limit(50).fetch().await?;
+
+// After (4.0)
+use lastfm_client::LastFmClient;
+let client = LastFmClient::new()?;
+let tracks = client.loved_tracks("user").limit(50).fetch().await?;
+```
+
+**`LastFmClient` simplified**: the struct now holds a single `Arc<dyn HttpClient>` plus
+`Arc<Config>` instead of one sub-client per endpoint. The public builder methods
+(`recent_tracks`, `loved_tracks`, etc.) are unchanged.
+
 ### Added
 
 - `LimitBuilder` trait: single `limit_mut()` hook, default `limit(n)` and `unlimited()` — now
@@ -48,9 +69,6 @@ use lastfm_client::{LastFmClient, prelude::*};
   JSON and CSV.
 - `Analyze` trait: blanket impl — any builder implementing `FetchAndSave` whose item type
   implements `TrackAnalyzable` automatically gets `analyze` and `analyze_and_print`.
-
-### Added
-
 - `on_progress(callback)` builder method is now available on all five resource builders
   (`recent_tracks`, `loved_tracks`, `top_tracks`, `top_artists`, `top_albums`). Previously
   it existed only on `recent_tracks`.
@@ -68,19 +86,45 @@ use lastfm_client::{LastFmClient, prelude::*};
   ```toml
   lastfm-client = { version = "4", features = ["full"] }
   ```
+- **`user.getInfo`**: `client.user_info("username").fetch()` returns `UserInfo` with scrobble count,
+  real name, country, registration date, and subscriber status.
+- **`client.user_exists("username")`**: convenience method returning `Ok(true/false)`;
+  API error codes 6 and 7 map to `Ok(false)`, all other errors propagate.
+- **`user.getTopTags`**: `client.top_tags("username").limit(n).fetch()` returns `Vec<UserTopTag>`.
+  Maximum 50 tags; values above 50 are clamped automatically.
+- **`user.getFriends`**: `client.friends("username")` builder with `.fetch_page()` (single page)
+  and `.fetch_all()` (auto-paginated). Returns `FriendsPage` / `Vec<FriendProfile>`.
+- **`user.getPersonalTags`**: `client.personal_tags("username", "tag")` builder with three terminal
+  methods — `.fetch_tracks()`, `.fetch_artists()`, `.fetch_albums()` — returning the corresponding
+  `PersonalTagged*Page` type.
+- **Weekly chart endpoints** (four new methods on `LastFmClient`):
+  - `client.weekly_chart_list("username").fetch()` → `Vec<WeeklyChartRange>`
+  - `client.weekly_track_chart("username").range(&range).fetch()` → `Vec<WeeklyTrack>`
+  - `client.weekly_artist_chart("username").range(&range).fetch()` → `Vec<WeeklyArtist>`
+  - `client.weekly_album_chart("username").range(&range).fetch()` → `Vec<WeeklyAlbum>`
+  - All three chart builders expose `.from(u32)` and `.to(u32)` for manual range selection
+    in addition to the `.range(&WeeklyChartRange)` convenience setter.
+- New public types: `UserInfo`, `UserTopTag`, `FriendProfile`, `FriendsPage`,
+  `PersonalTaggedTrack`, `PersonalTaggedArtist`, `PersonalTaggedAlbum`,
+  `PersonalTaggedTracksPage`, `PersonalTaggedArtistsPage`, `PersonalTaggedAlbumsPage`,
+  `WeeklyChartRange`, `WeeklyTrack`, `WeeklyArtist`, `WeeklyAlbum`.
 
 ### Changed (internal)
 
 - API method strings (`"user.getrecenttracks"`, `"user.getlovedtracks"`, etc.) moved from
-  inline string literals to named constants in `src/api/constants.rs`
-  (`METHOD_RECENT_TRACKS`, `METHOD_LOVED_TRACKS`, `METHOD_TOP_TRACKS`,
-  `METHOD_TOP_ARTISTS`, `METHOD_TOP_ALBUMS`, `METHOD_USER_INFO`).
-- `src/api/recent_tracks.rs` split into a module directory (`recent_tracks/mod.rs`, `client.rs`,
+  inline string literals to named constants in `src/api/constants.rs`.
+- `src/api/recent_tracks.rs` split into a module directory (`recent_tracks/mod.rs`,
   `builder.rs`, `extended.rs`) for better organisation. Public API is unchanged.
 - Duplicate `from`/`to` date-range guard extracted to a shared `validate_date_range` helper
   called by both `fetch()` and `fetch_extended()`. Behaviour is unchanged.
-- `fetch_and_update` logic unified under the `FetchAndUpdate::fetch_since` trait hook; the
-  concrete per-builder implementations are gone.
+- `fetch_and_update` logic unified under the `FetchAndUpdate::fetch_since` trait hook.
+- `LastFmClient::with_http` constructor simplified — no sub-client construction.
+- All `XRequestBuilder::new()` methods are now `pub(crate)`, constructed directly
+  by `LastFmClient`.
+- `user_params(method, username, api_key)` helper extracted to `src/api/fetch_utils.rs` to
+  eliminate repeated param setup across every `fetch()` method.
+- `HttpClient` trait now requires `std::fmt::Debug` as a supertrait, enabling
+  `Arc<dyn HttpClient>: Debug` and `#[derive(Debug)]` on simpler builder structs.
 
 ### Removed
 

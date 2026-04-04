@@ -3,16 +3,18 @@ pub mod builder_ext;
 /// API constants (base URL, limits, chunk sizes)
 pub mod constants;
 mod fetch_utils;
-mod loved_tracks;
 #[cfg(feature = "progress")]
 mod progress;
-mod recent_tracks;
-mod top;
+/// Last.fm `user.*` API namespace
+pub mod user;
 
 pub use builder_ext::{Analyze, FetchAndSave, FetchAndUpdate, LimitBuilder};
+pub(crate) use fetch_utils::user_params;
 pub use fetch_utils::{Period, ProgressCallback, ResourceContainer};
-pub use loved_tracks::{LovedTracksClient, LovedTracksRequestBuilder};
-pub use recent_tracks::{RecentTracksClient, RecentTracksRequestBuilder};
-pub use top::{TopAlbumsClient, TopAlbumsRequestBuilder};
-pub use top::{TopArtistsClient, TopArtistsRequestBuilder};
-pub use top::{TopTracksClient, TopTracksRequestBuilder};
+pub use user::{FriendsRequestBuilder, LovedTracksRequestBuilder, PersonalTagsRequestBuilder};
+pub use user::{RecentTracksRequestBuilder, TopAlbumsRequestBuilder, TopArtistsRequestBuilder};
+pub use user::{TopTagsRequestBuilder, TopTracksRequestBuilder, UserInfoRequestBuilder};
+pub use user::{
+    WeeklyAlbumChartRequestBuilder, WeeklyArtistChartRequestBuilder, WeeklyChartListRequestBuilder,
+    WeeklyTrackChartRequestBuilder,
+};

@@ -1,36 +1,20 @@
 //! Demonstrates fetching loved tracks.
 
-use lastfm_client::LimitBuilder;
-use lastfm_client::api::{LovedTracksClient, RecentTracksClient};
-use lastfm_client::client::ReqwestClient;
-use lastfm_client::config::ConfigBuilder;
-use std::sync::Arc;
+use lastfm_client::LastFmClient;
+use lastfm_client::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenv::dotenv().ok();
 
-    // Create configuration
-    let config = Arc::new(ConfigBuilder::new().from_env()?.build()?);
-
-    // Create HTTP client
-    let http_client = Arc::new(ReqwestClient::new());
-
-    // Create loved tracks client
-    let loved_tracks_client = LovedTracksClient::new(http_client.clone(), config.clone());
-
-    // Create recent tracks client for comparison
-    let recent_tracks_client = RecentTracksClient::new(http_client, config);
+    // Create client
+    let client = LastFmClient::new()?;
 
     println!("Fetching loved tracks...");
 
     // Fetch first 50 loved tracks
-    let loved_tracks = loved_tracks_client
-        .builder("tom_planche")
-        .limit(50)
-        .fetch()
-        .await?;
+    let loved_tracks = client.loved_tracks("tom_planche").limit(50).fetch().await?;
 
     println!("Found {} loved tracks", loved_tracks.len());
 
@@ -51,8 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Fetch all loved tracks (unlimited)
     println!("\nFetching all loved tracks...");
-    let all_loved_tracks = loved_tracks_client
-        .builder("tom_planche")
+    let all_loved_tracks = client
+        .loved_tracks("tom_planche")
         .unlimited()
         .fetch()
         .await?;
@@ -61,8 +45,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Compare with recent tracks
     println!("\nFetching recent tracks for comparison...");
-    let recent_tracks = recent_tracks_client
-        .builder("tom_planche")
+    let recent_tracks = client
+        .recent_tracks("tom_planche")
         .limit(50)
         .fetch()
         .await?;

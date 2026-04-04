@@ -4,6 +4,18 @@ use crate::error::Result;
 use crate::types::TrackLimit;
 use crate::url_builder::{QueryParams, Url};
 
+/// Build the four standard parameters every Last.fm `user.*` request requires.
+///
+/// Inserts `method`, `user`, `api_key`, and `format=json` into a fresh [`QueryParams`].
+pub(crate) fn user_params(method: &str, username: &str, api_key: &str) -> QueryParams {
+    let mut params = QueryParams::new();
+    params.insert("method".to_string(), method.to_string());
+    params.insert("user".to_string(), username.to_string());
+    params.insert("api_key".to_string(), api_key.to_string());
+    params.insert("format".to_string(), "json".to_string());
+    params
+}
+
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;

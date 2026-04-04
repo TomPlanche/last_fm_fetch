@@ -11,32 +11,6 @@ use serde::de::DeserializeOwned;
 use std::fmt;
 use std::sync::Arc;
 
-/// Client for fetching top albums
-pub struct TopAlbumsClient {
-    http: Arc<dyn HttpClient>,
-    config: Arc<Config>,
-}
-
-impl fmt::Debug for TopAlbumsClient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TopAlbumsClient")
-            .field("config", &self.config)
-            .finish_non_exhaustive()
-    }
-}
-
-impl TopAlbumsClient {
-    /// Create a new top albums client
-    pub fn new(http: Arc<dyn HttpClient>, config: Arc<Config>) -> Self {
-        Self { http, config }
-    }
-
-    /// Create a builder for top albums requests
-    pub fn builder(&self, username: impl Into<String>) -> TopAlbumsRequestBuilder {
-        TopAlbumsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
-    }
-}
-
 /// Builder for top albums requests
 pub struct TopAlbumsRequestBuilder {
     http: Arc<dyn HttpClient>,
@@ -58,7 +32,7 @@ impl fmt::Debug for TopAlbumsRequestBuilder {
 }
 
 impl TopAlbumsRequestBuilder {
-    fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
+    pub(crate) fn new(http: Arc<dyn HttpClient>, config: Arc<Config>, username: String) -> Self {
         Self {
             http,
             config,

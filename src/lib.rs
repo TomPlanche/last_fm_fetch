@@ -63,8 +63,16 @@ pub mod prelude {
 
 // Re-export API clients
 pub use api::{
-    LovedTracksClient, LovedTracksRequestBuilder, ProgressCallback, RecentTracksClient,
-    RecentTracksRequestBuilder, TopTracksClient, TopTracksRequestBuilder,
+    FriendsRequestBuilder, LovedTracksRequestBuilder, PersonalTagsRequestBuilder, ProgressCallback,
+    RecentTracksRequestBuilder, TopAlbumsRequestBuilder, TopArtistsRequestBuilder,
+    TopTagsRequestBuilder, TopTracksRequestBuilder, UserInfoRequestBuilder,
+    WeeklyAlbumChartRequestBuilder, WeeklyArtistChartRequestBuilder, WeeklyChartListRequestBuilder,
+    WeeklyTrackChartRequestBuilder,
+};
+pub use types::{
+    FriendProfile, FriendsPage, PersonalTaggedAlbum, PersonalTaggedAlbumsPage,
+    PersonalTaggedArtist, PersonalTaggedArtistsPage, PersonalTaggedTrack, PersonalTaggedTracksPage,
+    UserInfo, UserTopTag, WeeklyAlbum, WeeklyArtist, WeeklyChartRange, WeeklyTrack,
 };
 
 // Re-export SQLite traits when feature is enabled

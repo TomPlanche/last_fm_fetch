@@ -1,5 +1,9 @@
 use crate::api::{
-    LovedTracksClient, RecentTracksClient, TopAlbumsClient, TopArtistsClient, TopTracksClient,
+    FriendsRequestBuilder, LovedTracksRequestBuilder, PersonalTagsRequestBuilder,
+    RecentTracksRequestBuilder, TopAlbumsRequestBuilder, TopArtistsRequestBuilder,
+    TopTagsRequestBuilder, TopTracksRequestBuilder, UserInfoRequestBuilder,
+    WeeklyAlbumChartRequestBuilder, WeeklyArtistChartRequestBuilder, WeeklyChartListRequestBuilder,
+    WeeklyTrackChartRequestBuilder,
 };
 use crate::client::{
     HttpClient, RateLimitedClient, RateLimiter, ReqwestClient, RetryClient, RetryPolicy,
@@ -28,13 +32,8 @@ use std::sync::Arc;
 /// // Use client.recent_tracks() to fetch data
 /// ```
 pub struct LastFmClient {
-    http: Arc<dyn HttpClient>,
     config: Arc<Config>,
-    recent_tracks_client: RecentTracksClient,
-    loved_tracks_client: LovedTracksClient,
-    top_tracks_client: TopTracksClient,
-    top_artists_client: TopArtistsClient,
-    top_albums_client: TopAlbumsClient,
+    http: Arc<dyn HttpClient>,
 }
 
 impl std::fmt::Debug for LastFmClient {
@@ -111,21 +110,9 @@ impl LastFmClient {
             Arc::new(RetryClient::new(base_client, retry_policy))
         };
 
-        let config = Arc::new(config);
-        let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
-        let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
-        let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
-        let top_artists_client = TopArtistsClient::new(http.clone(), config.clone());
-        let top_albums_client = TopAlbumsClient::new(http.clone(), config.clone());
-
         Self {
+            config: Arc::new(config),
             http,
-            config,
-            recent_tracks_client,
-            loved_tracks_client,
-            top_tracks_client,
-            top_artists_client,
-            top_albums_client,
         }
     }
 
@@ -150,21 +137,9 @@ impl LastFmClient {
     /// # }
     /// ```
     pub fn with_http(config: Config, http: Arc<dyn HttpClient>) -> Self {
-        let config = Arc::new(config);
-        let recent_tracks_client = RecentTracksClient::new(http.clone(), config.clone());
-        let loved_tracks_client = LovedTracksClient::new(http.clone(), config.clone());
-        let top_tracks_client = TopTracksClient::new(http.clone(), config.clone());
-        let top_artists_client = TopArtistsClient::new(http.clone(), config.clone());
-        let top_albums_client = TopAlbumsClient::new(http.clone(), config.clone());
-
         Self {
+            config: Arc::new(config),
             http,
-            config,
-            recent_tracks_client,
-            loved_tracks_client,
-            top_tracks_client,
-            top_artists_client,
-            top_albums_client,
         }
     }
 
@@ -182,11 +157,8 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn recent_tracks(
-        &self,
-        username: impl Into<String>,
-    ) -> crate::api::RecentTracksRequestBuilder {
-        self.recent_tracks_client.builder(username)
+    pub fn recent_tracks(&self, username: impl Into<String>) -> RecentTracksRequestBuilder {
+        RecentTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 
     /// Get a builder for loved tracks requests
@@ -203,11 +175,8 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn loved_tracks(
-        &self,
-        username: impl Into<String>,
-    ) -> crate::api::LovedTracksRequestBuilder {
-        self.loved_tracks_client.builder(username)
+    pub fn loved_tracks(&self, username: impl Into<String>) -> LovedTracksRequestBuilder {
+        LovedTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 
     /// Get a builder for top tracks requests
@@ -224,8 +193,8 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn top_tracks(&self, username: impl Into<String>) -> crate::api::TopTracksRequestBuilder {
-        self.top_tracks_client.builder(username)
+    pub fn top_tracks(&self, username: impl Into<String>) -> TopTracksRequestBuilder {
+        TopTracksRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 
     /// Get a builder for top artists requests
@@ -242,8 +211,8 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn top_artists(&self, username: impl Into<String>) -> crate::api::TopArtistsRequestBuilder {
-        self.top_artists_client.builder(username)
+    pub fn top_artists(&self, username: impl Into<String>) -> TopArtistsRequestBuilder {
+        TopArtistsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 
     /// Get a builder for top albums requests
@@ -260,19 +229,143 @@ impl LastFmClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn top_albums(&self, username: impl Into<String>) -> crate::api::TopAlbumsRequestBuilder {
-        self.top_albums_client.builder(username)
+    pub fn top_albums(&self, username: impl Into<String>) -> TopAlbumsRequestBuilder {
+        TopAlbumsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for top tags requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tags = client
+    ///     .top_tags("username")
+    ///     .limit(20)
+    ///     .fetch()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn top_tags(&self, username: impl Into<String>) -> TopTagsRequestBuilder {
+        TopTagsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for `user.getWeeklyChartList` requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let ranges = client.weekly_chart_list("username").fetch().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn weekly_chart_list(&self, username: impl Into<String>) -> WeeklyChartListRequestBuilder {
+        WeeklyChartListRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for `user.getWeeklyTrackChart` requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let ranges = client.weekly_chart_list("username").fetch().await?;
+    /// if let Some(range) = ranges.first() {
+    ///     let tracks = client.weekly_track_chart("username").range(range).fetch().await?;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn weekly_track_chart(
+        &self,
+        username: impl Into<String>,
+    ) -> WeeklyTrackChartRequestBuilder {
+        WeeklyTrackChartRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for `user.getWeeklyArtistChart` requests
+    pub fn weekly_artist_chart(
+        &self,
+        username: impl Into<String>,
+    ) -> WeeklyArtistChartRequestBuilder {
+        WeeklyArtistChartRequestBuilder::new(
+            self.http.clone(),
+            self.config.clone(),
+            username.into(),
+        )
+    }
+
+    /// Get a builder for `user.getWeeklyAlbumChart` requests
+    pub fn weekly_album_chart(
+        &self,
+        username: impl Into<String>,
+    ) -> WeeklyAlbumChartRequestBuilder {
+        WeeklyAlbumChartRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for friends requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let friends = client.friends("rj").fetch_all().await?;
+    /// for friend in &friends {
+    ///     println!("{}", friend.name);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn friends(&self, username: impl Into<String>) -> FriendsRequestBuilder {
+        FriendsRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
+    }
+
+    /// Get a builder for personal tags requests
+    ///
+    /// Returns tracks, artists, or albums that the user has tagged with the given tag.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let page = client.personal_tags("rj", "rock").fetch_tracks().await?;
+    /// for track in &page.tracks {
+    ///     println!("{} - {}", track.artist_name, track.name);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn personal_tags(
+        &self,
+        username: impl Into<String>,
+        tag: impl Into<String>,
+    ) -> PersonalTagsRequestBuilder {
+        PersonalTagsRequestBuilder::new(
+            self.http.clone(),
+            self.config.clone(),
+            username.into(),
+            tag.into(),
+        )
+    }
+
+    /// Get a builder for user profile requests
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use lastfm_client::LastFmClient;
+    /// # async fn example(client: LastFmClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// let info = client.user_info("rj").fetch().await?;
+    /// println!("{} has {} scrobbles", info.name, info.play_count);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn user_info(&self, username: impl Into<String>) -> UserInfoRequestBuilder {
+        UserInfoRequestBuilder::new(self.http.clone(), self.config.clone(), username.into())
     }
 
     /// Check if a Last.fm user exists
-    ///
-    /// # Arguments
-    /// * `username` - The Last.fm username to check
-    ///
-    /// # Returns
-    /// * `Ok(true)` - User exists
-    /// * `Ok(false)` - User does not exist
-    /// * `Err` - Network error or other API error
     ///
     /// # Example
     /// ```no_run
@@ -291,24 +384,11 @@ impl LastFmClient {
     /// Returns an error if the request fails due to network issues or other API errors
     /// (not including "user not found" which returns `Ok(false)`)
     pub async fn user_exists(&self, username: impl Into<String>) -> Result<bool> {
-        use crate::api::constants::{BASE_URL, METHOD_USER_INFO};
         use crate::error::LastFmError;
-        use crate::url_builder::{QueryParams, Url};
 
-        let username = username.into();
-        let mut params = QueryParams::new();
-        params.insert("method".to_string(), METHOD_USER_INFO.to_string());
-        params.insert("user".to_string(), username);
-        params.insert("api_key".to_string(), self.config.api_key().to_string());
-        params.insert("format".to_string(), "json".to_string());
-
-        let url = Url::new(BASE_URL).add_args(params).build();
-
-        match self.http.get(&url).await {
+        match self.user_info(username).fetch().await {
             Ok(_) => Ok(true),
             Err(LastFmError::Api { error_code, .. }) if error_code == 6 || error_code == 7 => {
-                // Error code 6: Invalid parameters (user not found)
-                // Error code 7: Invalid resource specified (user not found)
                 Ok(false)
             }
             Err(e) => Err(e),
@@ -382,7 +462,14 @@ mod tests {
                 "user": {
                     "name": "rj",
                     "realname": "Richard Jones",
-                    "url": "https://www.last.fm/user/rj"
+                    "url": "https://www.last.fm/user/rj",
+                    "country": "UK",
+                    "age": "0",
+                    "gender": "m",
+                    "subscriber": "0",
+                    "playcount": "12345",
+                    "playlists": "0",
+                    "registered": { "unixtime": "1104874958", "#text": "2005-01-05 00:00" }
                 }
             }),
         );

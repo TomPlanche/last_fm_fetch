@@ -4,6 +4,62 @@ A modern, async Rust library for fetching and analyzing Last.fm user data with e
 
 ## What's new in v4.0
 
+Eight new `user.*` endpoints, a simplified `LastFmClient` that no longer exposes
+intermediate client types, and extension traits that eliminate ~400 lines of
+duplicated builder boilerplate.
+
+### New endpoints
+
+```rust
+use lastfm_client::LastFmClient;
+
+let client = LastFmClient::new()?;
+
+// User profile
+let info = client.user_info("username").fetch().await?;
+println!("{} — {} scrobbles", info.name, info.play_count);
+
+// Check existence
+if client.user_exists("username").await? { /* … */ }
+
+// Top tags (max 50)
+let tags = client.top_tags("username").limit(20).fetch().await?;
+
+// Friends (auto-paginated)
+let friends = client.friends("username").fetch_all().await?;
+
+// Personal tags — tracks, artists, or albums
+let page = client.personal_tags("username", "shoegaze").fetch_tracks().await?;
+
+// Weekly charts
+let ranges = client.weekly_chart_list("username").fetch().await?;
+if let Some(range) = ranges.first() {
+    let tracks  = client.weekly_track_chart("username").range(range).fetch().await?;
+    let artists = client.weekly_artist_chart("username").range(range).fetch().await?;
+    let albums  = client.weekly_album_chart("username").range(range).fetch().await?;
+}
+```
+
+### Simplified client API
+
+The intermediate `XClient` factory types (`LovedTracksClient`, `RecentTracksClient`,
+`TopTracksClient`, `TopArtistsClient`, `TopAlbumsClient`) have been removed from the
+public API. Use `LastFmClient` directly:
+
+```rust
+// Before (3.x)
+use lastfm_client::api::LovedTracksClient;
+let client = LovedTracksClient::new(http, config);
+let tracks = client.builder("user").limit(50).fetch().await?;
+
+// After (4.0)
+use lastfm_client::LastFmClient;
+let client = LastFmClient::new()?;
+let tracks = client.loved_tracks("user").limit(50).fetch().await?;
+```
+
+### Extension traits
+
 Builder methods are now provided by shared extension traits instead of being duplicated on each
 builder. This removes ~400 lines of boilerplate and makes the API consistent across all five
 resource types.
@@ -159,7 +215,7 @@ Runnable programs live in [`examples/`](examples/). Set `LAST_FM_API_KEY` (and o
 | `with_progress` | `cargo run --example with_progress --features progress` | `with_progress()` terminal progress bar |
 | `new_api_demo` | `cargo run --example new_api_demo` | Basic recent-track builders |
 | `advanced_features` | `cargo run --example advanced_features` | Retry, rate limiting, config |
-| `loved_tracks_demo` | `cargo run --example loved_tracks_demo` | Loved + recent via lower-level clients |
+| `loved_tracks_demo` | `cargo run --example loved_tracks_demo` | Loved + recent tracks |
 | `check_user_exists` | `cargo run --example check_user_exists` | `user_exists` |
 | `validate_env` | `cargo run --example validate_env` | `validate_env_vars` |
 
@@ -355,7 +411,7 @@ Schema overview:
 **Built-in progress bar** (requires the `progress` feature):
 
 ```toml
-lastfm-client = { version = "4", features = ["progress"] }
+lastfm-client = { version = "5", features = ["progress"] }
 ```
 
 ```rust
@@ -721,6 +777,63 @@ client.top_albums("username")
     .fetch_and_save_sqlite(prefix)     // sqlite feature only: save to .db file
 ```
 
+### User Info
+
+```rust
+client.user_info("username")
+    .fetch()    // Execute and get UserInfo
+
+// Convenience check
+client.user_exists("username").await? // -> bool
+```
+
+### Top Tags
+
+```rust
+client.top_tags("username")
+    .limit(u32)    // 1–50; values above 50 are clamped to 50 (API cap)
+    .fetch()       // Execute and get Vec<UserTopTag>
+```
+
+### Friends
+
+```rust
+client.friends("username")
+    .limit(u32)          // Results per page (default 50, max 200)
+    .page(u32)           // Page number (1-indexed)
+    .recent_tracks(bool) // Include recent track info for each friend
+    .fetch_page()        // Execute and get FriendsPage
+    .fetch_all()         // Auto-paginate and get Vec<FriendProfile>
+```
+
+### Personal Tags
+
+```rust
+client.personal_tags("username", "tag")
+    .limit(u32)        // Results per page (default 50, max 1000)
+    .page(u32)         // Page number (1-indexed)
+    .fetch_tracks()    // Execute and get PersonalTaggedTracksPage
+    .fetch_artists()   // Execute and get PersonalTaggedArtistsPage
+    .fetch_albums()    // Execute and get PersonalTaggedAlbumsPage
+```
+
+### Weekly Charts
+
+```rust
+client.weekly_chart_list("username")
+    .fetch()    // Execute and get Vec<WeeklyChartRange>
+
+client.weekly_track_chart("username")
+    .from(u32)                 // Start Unix timestamp (optional)
+    .to(u32)                   // End Unix timestamp (optional)
+    .range(&WeeklyChartRange)  // Set both from + to from a range value
+    .fetch()                   // Execute and get Vec<WeeklyTrack>
+
+// Same builder interface for:
+client.weekly_artist_chart("username") // -> Vec<WeeklyArtist>
+client.weekly_album_chart("username")  // -> Vec<WeeklyAlbum>
+```
+
 ### Available Period Options
 
 - `Period::Overall` - All time
@@ -806,30 +919,43 @@ let mock_client = MockClient::new(responses);
 ```
 src/
 ├── client/
-│   ├── lastfm.rs            # Main LastFmClient entry point
-│   ├── http.rs              # HTTP abstraction (trait + implementations)
-│   ├── retry.rs             # Retry logic with backoff strategies
-│   └── rate_limiter.rs      # Rate limiting with sliding window
+│   ├── lastfm.rs            # LastFmClient — single http + config, all builder methods
+│   ├── http.rs              # HttpClient trait + ReqwestClient + MockClient
+│   ├── retry.rs             # RetryClient + RetryPolicy (exponential/linear backoff)
+│   └── rate_limiter.rs      # RateLimiter + RateLimitedClient (sliding window)
 ├── api/
 │   ├── builder_ext.rs       # Shared extension traits (LimitBuilder, FetchAndSave, …)
-│   ├── fetch_utils.rs       # Generic pagination with ResourceContainer trait
-│   ├── recent_tracks/
-│   │   ├── mod.rs           # Re-exports + ResourceContainer impls
-│   │   ├── client.rs        # RecentTracksClient
-│   │   ├── builder.rs       # RecentTracksRequestBuilder + core methods + trait impls
-│   │   └── extended.rs      # fetch_extended / fetch_extended_and_* methods
-│   ├── loved_tracks.rs      # LovedTracksClient with builder pattern
-│   ├── top_tracks.rs        # TopTracksClient with builder pattern
-│   ├── top_artists.rs       # TopArtistsClient with builder pattern
-│   └── top_albums.rs        # TopAlbumsClient with builder pattern
+│   ├── constants.rs         # API method name constants
+│   ├── fetch_utils.rs       # Generic pagination, ResourceContainer, user_params helper
+│   └── user/
+│       ├── recent_tracks/
+│       │   ├── mod.rs       # Re-exports + ResourceContainer impls
+│       │   ├── builder.rs   # RecentTracksRequestBuilder + trait impls
+│       │   └── extended.rs  # fetch_extended / fetch_extended_and_* methods
+│       ├── loved_tracks.rs  # LovedTracksRequestBuilder + trait impls
+│       ├── top/
+│       │   ├── tracks.rs    # TopTracksRequestBuilder
+│       │   ├── artists.rs   # TopArtistsRequestBuilder
+│       │   ├── albums.rs    # TopAlbumsRequestBuilder
+│       │   └── tags.rs      # TopTagsRequestBuilder
+│       ├── info.rs          # UserInfoRequestBuilder
+│       ├── friends.rs       # FriendsRequestBuilder
+│       ├── personal_tags.rs # PersonalTagsRequestBuilder
+│       └── weekly/
+│           └── charts.rs    # Weekly chart builders (list, track, artist, album)
 ├── types/
-│   ├── tracks.rs            # Track type definitions
-│   ├── artists.rs           # Artist type definitions
-│   ├── albums.rs            # Album type definitions
+│   ├── tracks.rs            # RecentTrack, LovedTrack, TopTrack, scored types
+│   ├── artists.rs           # TopArtist
+│   ├── albums.rs            # TopAlbum
+│   ├── tags.rs              # UserTopTag
+│   ├── friends.rs           # FriendProfile, FriendsPage
+│   ├── personal_tags.rs     # PersonalTagged* types and pages
+│   ├── weekly.rs            # WeeklyChartRange, WeeklyTrack/Artist/Album
+│   ├── user_info.rs         # UserInfo
 │   ├── track_list.rs        # TrackList<T> newtype with Display + Deref
 │   └── period.rs            # Period and TrackLimit enums
-├── config.rs                # Configuration with builder
-├── error.rs                 # Rich error types with retry hints
+├── config.rs                # Config + ConfigBuilder
+├── error.rs                 # LastFmError with retry hints
 ├── analytics.rs             # TrackAnalyzable trait + AnalysisHandler
 ├── file_handler.rs          # JSON/NDJSON/CSV/SQLite export
 └── sqlite.rs                # SqliteExportable trait (sqlite feature only)

@@ -197,6 +197,7 @@ impl FileHandler {
     pub fn load<T: serde::de::DeserializeOwned>(file_path: &str) -> Result<Vec<T>> {
         let file = File::open(file_path)?;
         let data: Vec<T> = serde_json::from_reader(file)?;
+
         Ok(data)
     }
 
