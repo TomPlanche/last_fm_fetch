@@ -5,7 +5,7 @@ use std::fmt;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::utils::{bool_from_str, u32_from_str};
+use crate::types::utils::{bool_from_str, u32_from_str, vec_or_single};
 
 use super::track_list::TrackList;
 
@@ -580,6 +580,7 @@ pub struct BaseResponse {
 #[non_exhaustive]
 pub struct RecentTracks {
     /// List of recent tracks
+    #[serde(deserialize_with = "vec_or_single")]
     pub track: Vec<RecentTrack>,
     /// Response metadata
     #[serde(rename = "@attr")]
@@ -599,6 +600,7 @@ pub struct UserRecentTracks {
 #[non_exhaustive]
 pub struct RecentTracksExtended {
     /// List of extended recent tracks
+    #[serde(deserialize_with = "vec_or_single")]
     pub track: Vec<RecentTrackExtended>,
     /// Response metadata
     #[serde(rename = "@attr")]
@@ -618,6 +620,7 @@ pub struct UserRecentTracksExtended {
 #[non_exhaustive]
 pub struct LovedTracks {
     /// List of loved tracks
+    #[serde(deserialize_with = "vec_or_single")]
     pub track: Vec<LovedTrack>,
     /// Response metadata
     #[serde(rename = "@attr")]
@@ -637,6 +640,7 @@ pub struct UserLovedTracks {
 #[non_exhaustive]
 pub struct TopTracks {
     /// List of top tracks
+    #[serde(deserialize_with = "vec_or_single")]
     pub track: Vec<TopTrack>,
     /// Response metadata
     #[serde(rename = "@attr")]
