@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Example 3: Complete configuration");
     let client = LastFmClient::builder()
         .from_env()?
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_mins(1))
         .max_concurrent_requests(10)
         .retry_attempts(3)
         .rate_limit(10, Duration::from_secs(1))

@@ -4,7 +4,7 @@ use std::fmt;
 use crate::types::{BaseObject, BaseResponse, RankAttr, TrackImage};
 use serde::{Deserialize, Serialize};
 
-use crate::types::utils::u32_from_str;
+use crate::types::utils::{u32_from_str, vec_or_single};
 
 /// An album from a user's top albums, ranked by play count
 ///
@@ -134,6 +134,7 @@ impl crate::sqlite::SqliteLoadable for TopAlbum {
 #[non_exhaustive]
 pub struct TopAlbums {
     /// List of top albums
+    #[serde(deserialize_with = "vec_or_single")]
     pub album: Vec<TopAlbum>,
     /// Response metadata
     #[serde(rename = "@attr")]

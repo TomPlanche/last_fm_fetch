@@ -405,14 +405,14 @@ async fn test_client_configuration() {
     // Test that client can be configured with custom settings
     let config = ConfigBuilder::new()
         .api_key("test_key")
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_mins(1))
         .max_concurrent_requests(10)
         .retry_attempts(5)
         .build()
         .expect("Failed to build config");
 
     assert_eq!(config.api_key(), "test_key");
-    assert_eq!(config.timeout(), Duration::from_secs(60));
+    assert_eq!(config.timeout(), Duration::from_mins(1));
     assert_eq!(config.max_concurrent_requests(), 10);
     assert_eq!(config.retry_attempts(), 5);
 
@@ -748,10 +748,10 @@ async fn test_is_retryable_method() {
 
     // Rate limited error
     let rate_limited = LastFmError::RateLimited {
-        retry_after: Some(Duration::from_secs(60)),
+        retry_after: Some(Duration::from_mins(1)),
     };
     assert!(rate_limited.is_retryable());
-    assert_eq!(rate_limited.retry_after(), Some(Duration::from_secs(60)));
+    assert_eq!(rate_limited.retry_after(), Some(Duration::from_mins(1)));
 
     // Config error (not retryable)
     let config_error = LastFmError::Config("Invalid config".to_string());

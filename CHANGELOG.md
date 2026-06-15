@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2026-06-15
+
+### Fixed
+
+- **Single-item list responses from Last.fm no longer fail to parse.** Every `fetch()` /
+  `fetch_extended()` issues an initial `limit=1` probe request to discover the total item
+  count. Last.fm collapses single-element lists into a bare object instead of a one-element
+  array, which broke deserialization with `invalid type: map, expected a sequence`. This was
+  most visible via `fetch_extended_and_update_sqlite` against a fresh database (no prior
+  timestamp, so the probe path always runs) and when the user was not currently playing a
+  track. A new `vec_or_single` deserializer accepts both shapes and is applied to the list
+  fields of `RecentTracks`, `RecentTracksExtended`, `LovedTracks`, `TopTracks`, `TopArtists`,
+  and `TopAlbums`.
+
+### Changed (internal)
+
+- Resolved `clippy::pedantic` lints newly raised under Rust 1.96.0: `Duration::from_secs(60)`
+  replaced with `Duration::from_mins(1)` (`http.rs`, `config.rs`), and
+  `sort_unstable_by(|a, b| b.cmp(&a))` replaced with
+  `sort_unstable_by_key(|b| std::cmp::Reverse(...))` (`tracks.rs`). No behaviour change.
+
 ## [4.0.0] - 2026-04-04
 
 ### Changed (breaking)
