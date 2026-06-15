@@ -245,7 +245,7 @@ mod tests {
         let config = ConfigBuilder::new()
             .api_key("test_key")
             .user_agent("test_agent")
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_mins(1))
             .max_concurrent_requests(10)
             .retry_attempts(5)
             .build()
@@ -253,7 +253,7 @@ mod tests {
 
         assert_eq!(config.api_key(), "test_key");
         assert_eq!(config.user_agent(), "test_agent");
-        assert_eq!(config.timeout(), Duration::from_secs(60));
+        assert_eq!(config.timeout(), Duration::from_mins(1));
         assert_eq!(config.max_concurrent_requests(), 10);
         assert_eq!(config.retry_attempts(), 5);
     }

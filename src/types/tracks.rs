@@ -770,7 +770,7 @@ impl TrackList<RecentTrack> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, track) in scored.iter_mut().enumerate() {
             track.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
@@ -815,7 +815,7 @@ impl TrackList<RecentTrack> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, artist) in scored.iter_mut().enumerate() {
             artist.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
@@ -868,7 +868,7 @@ impl TrackList<RecentTrack> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, album) in scored.iter_mut().enumerate() {
             album.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
@@ -1043,7 +1043,7 @@ impl TrackList<RecentTrackExtended> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, track) in scored.iter_mut().enumerate() {
             track.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
@@ -1075,7 +1075,7 @@ impl TrackList<RecentTrackExtended> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, artist) in scored.iter_mut().enumerate() {
             artist.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));
@@ -1116,7 +1116,7 @@ impl TrackList<RecentTrackExtended> {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.play_count.cmp(&a.play_count));
+        scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.play_count));
 
         for (i, album) in scored.iter_mut().enumerate() {
             album.rank = u32::try_from(i).map_or(u32::MAX, |n| n.saturating_add(1));

@@ -187,7 +187,7 @@ mod tests {
 
         assert_eq!(policy.max_attempts(), 5);
         assert_eq!(policy.backoff(0), Duration::from_millis(500));
-        assert_eq!(policy.backoff(1), Duration::from_millis(1000));
+        assert_eq!(policy.backoff(1), Duration::from_secs(1));
     }
 
     #[tokio::test]

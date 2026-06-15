@@ -107,7 +107,7 @@ impl HttpClient for ReqwestClient {
                 // Special handling for rate limit error code 29
                 if error.error == 29 {
                     return Err(LastFmError::RateLimited {
-                        retry_after: Some(Duration::from_secs(60)), // Default 1 minute
+                        retry_after: Some(Duration::from_mins(1)), // Default 1 minute
                     });
                 }
 
@@ -137,7 +137,7 @@ impl HttpClient for ReqwestClient {
                     // Special handling for rate limit error code 29
                     if error.error == 29 {
                         return Err(LastFmError::RateLimited {
-                            retry_after: Some(Duration::from_secs(60)),
+                            retry_after: Some(Duration::from_mins(1)),
                         });
                     }
 
@@ -215,7 +215,7 @@ impl HttpClient for MockClient {
             // Special handling for rate limit error code 29
             if error.error == 29 {
                 return Err(LastFmError::RateLimited {
-                    retry_after: Some(Duration::from_secs(60)),
+                    retry_after: Some(Duration::from_mins(1)),
                 });
             }
 

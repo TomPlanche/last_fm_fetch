@@ -103,7 +103,12 @@ mod tests {
         // Last.fm collapses single-element lists to a bare object (the limit=1 probe quirk).
         let json = r#"{ "items": { "name": "a" } }"#;
         let parsed: Wrapper = serde_json::from_str(json).unwrap();
-        assert_eq!(parsed.items, vec![Item { name: "a".to_string() }]);
+        assert_eq!(
+            parsed.items,
+            vec![Item {
+                name: "a".to_string()
+            }]
+        );
     }
 
     #[test]
