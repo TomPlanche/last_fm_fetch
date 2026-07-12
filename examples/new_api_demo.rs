@@ -25,7 +25,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(tracks) => {
             println!("✓ Fetched {} tracks", tracks.len());
             for (i, track) in tracks.iter().enumerate().take(5) {
-                println!("  {}. {} - {}", i + 1, track.name, track.artist.text);
+                println!(
+                    "  {}. {} - {}",
+                    i + 1,
+                    track.name.as_deref().unwrap_or(""),
+                    track.artist.text.as_deref().unwrap_or("")
+                );
             }
         }
         Err(e) => {
@@ -82,7 +87,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for track in &tracks {
                 println!(
                     "  - {} by {} (Album: {})",
-                    track.name, track.artist.name, track.album.name
+                    track.name.as_deref().unwrap_or(""),
+                    track.artist.name.as_deref().unwrap_or(""),
+                    track.album.name.as_deref().unwrap_or("")
                 );
             }
         }

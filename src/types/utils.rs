@@ -25,6 +25,21 @@ where
     })
 }
 
+/// Custom deserializer that folds empty strings into `None`.
+///
+/// The Last.fm API returns `""` for absent identifiers and URLs (most commonly
+/// missing `MusicBrainz` IDs). This deserializer maps those blanks, as well as
+/// JSON `null`, to `None`, so "no value" is represented as `None` rather than an
+/// empty string. Combined with `#[serde(default)]`, an absent field also
+/// deserializes to `None`.
+pub(crate) fn empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    Ok(value.filter(|s| !s.is_empty()))
+}
+
 /// Custom deserializer that accepts both string and numeric u32 values
 ///
 /// The Last.fm API sometimes returns numeric values as strings (e.g., "12345" instead of 12345).

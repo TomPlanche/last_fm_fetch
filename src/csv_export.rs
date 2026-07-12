@@ -166,13 +166,13 @@ fn write_recent_tracks_csv(
         let streamable = if t.streamable { "true" } else { "false" };
         let now_playing = t.attr.as_ref().map_or("false", |a| a.nowplaying.as_str());
         w.write_record([
-            t.name.as_str(),
-            t.artist.text.as_str(),
-            t.artist.mbid.as_str(),
-            t.album.text.as_str(),
-            t.album.mbid.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.artist.text.as_deref().unwrap_or(""),
+            t.artist.mbid.as_deref().unwrap_or(""),
+            t.album.text.as_deref().unwrap_or(""),
+            t.album.mbid.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
             streamable,
             date_uts.as_str(),
             t.date.as_ref().map_or("", |d| d.text.as_str()),
@@ -228,16 +228,16 @@ fn write_recent_tracks_extended_csv(
             .and_then(|m| m.get("nowplaying"))
             .map_or("false", std::string::String::as_str);
         w.write_record([
-            t.name.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
             streamable,
-            t.artist.name.as_str(),
-            t.artist.mbid.as_str(),
-            t.artist.url.as_str(),
-            t.album.name.as_str(),
-            t.album.mbid.as_str(),
-            t.album.url.as_str(),
+            t.artist.name.as_deref().unwrap_or(""),
+            t.artist.mbid.as_deref().unwrap_or(""),
+            t.artist.url.as_deref().unwrap_or(""),
+            t.album.name.as_deref().unwrap_or(""),
+            t.album.mbid.as_deref().unwrap_or(""),
+            t.album.url.as_deref().unwrap_or(""),
             date_uts.as_str(),
             t.date.as_ref().map_or("", |d| d.text.as_str()),
             now_playing,
@@ -275,12 +275,12 @@ fn write_loved_tracks_csv(tracks: &[LovedTrack], path: &str, include_headers: bo
     for t in tracks {
         let date_uts = t.date.uts.to_string();
         w.write_record([
-            t.name.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
-            t.artist.name.as_str(),
-            t.artist.mbid.as_str(),
-            t.artist.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
+            t.artist.name.as_deref().unwrap_or(""),
+            t.artist.mbid.as_deref().unwrap_or(""),
+            t.artist.url.as_deref().unwrap_or(""),
             date_uts.as_str(),
             t.date.text.as_str(),
             t.streamable.fulltrack.as_str(),
@@ -321,15 +321,15 @@ fn write_top_tracks_csv(tracks: &[TopTrack], path: &str, include_headers: bool) 
         let duration = t.duration.to_string();
         let playcount = t.playcount.to_string();
         w.write_record([
-            t.name.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
             duration.as_str(),
             playcount.as_str(),
             t.attr.rank.as_str(),
-            t.artist.name.as_str(),
-            t.artist.mbid.as_str(),
-            t.artist.url.as_str(),
+            t.artist.name.as_deref().unwrap_or(""),
+            t.artist.mbid.as_deref().unwrap_or(""),
+            t.artist.url.as_deref().unwrap_or(""),
             t.streamable.fulltrack.as_str(),
             t.streamable.text.as_str(),
         ])
@@ -356,9 +356,9 @@ fn write_top_artists_csv(rows: &[TopArtist], path: &str, include_headers: bool) 
         let playcount = t.playcount.to_string();
         let streamable = if t.streamable { "true" } else { "false" };
         w.write_record([
-            t.name.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
             playcount.as_str(),
             streamable,
             t.attr.rank.as_str(),
@@ -394,14 +394,14 @@ fn write_top_albums_csv(rows: &[TopAlbum], path: &str, include_headers: bool) ->
     for t in rows {
         let playcount = t.playcount.to_string();
         w.write_record([
-            t.name.as_str(),
-            t.mbid.as_str(),
-            t.url.as_str(),
+            t.name.as_deref().unwrap_or(""),
+            t.mbid.as_deref().unwrap_or(""),
+            t.url.as_deref().unwrap_or(""),
             playcount.as_str(),
             t.attr.rank.as_str(),
-            t.artist.name.as_str(),
-            t.artist.mbid.as_str(),
-            t.artist.url.as_str(),
+            t.artist.name.as_deref().unwrap_or(""),
+            t.artist.mbid.as_deref().unwrap_or(""),
+            t.artist.url.as_deref().unwrap_or(""),
         ])
         .map_err(|e| csv_err(&e))?;
     }
@@ -521,20 +521,20 @@ mod tests {
     fn recent_track_csv_roundtrip_header() {
         let t = RecentTrack {
             artist: BaseMbidText {
-                mbid: "a1".into(),
-                text: "Artist".into(),
+                mbid: Some("a1".into()),
+                text: Some("Artist".into()),
             },
             streamable: false,
             image: vec![],
             album: BaseMbidText {
-                mbid: "b1".into(),
-                text: "Album".into(),
+                mbid: Some("b1".into()),
+                text: Some("Album".into()),
             },
             attr: None,
             date: None,
-            name: "Song".into(),
-            mbid: String::new(),
-            url: "https://x".into(),
+            name: Some("Song".into()),
+            mbid: None,
+            url: Some("https://x".into()),
         };
         let dir = std::env::temp_dir();
         let path = dir.join("lastfm_client_test_recent.csv");

@@ -27,8 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "{}. {} - {} (loved on {})",
             i + 1,
-            track.artist.name,
-            track.name,
+            track.artist.name.as_deref().unwrap_or(""),
+            track.name.as_deref().unwrap_or(""),
             date
         );
     }
