@@ -22,21 +22,21 @@ pub trait TrackAnalyzable {
 
 impl TrackAnalyzable for RecentTrack {
     fn get_artist_name(&self) -> String {
-        self.artist.text.clone()
+        self.artist.text.clone().unwrap_or_default()
     }
 
     fn get_track_name(&self) -> String {
-        self.name.clone()
+        self.name.clone().unwrap_or_default()
     }
 }
 
 impl TrackAnalyzable for LovedTrack {
     fn get_artist_name(&self) -> String {
-        self.artist.name.clone()
+        self.artist.name.clone().unwrap_or_default()
     }
 
     fn get_track_name(&self) -> String {
-        self.name.clone()
+        self.name.clone().unwrap_or_default()
     }
 }
 
@@ -199,29 +199,29 @@ mod tests {
     fn create_recent_track(artist: &str, name: &str) -> RecentTrack {
         RecentTrack {
             artist: BaseMbidText {
-                mbid: String::new(),
-                text: artist.to_string(),
+                mbid: None,
+                text: Some(artist.to_string()),
             },
             streamable: false,
             image: Vec::new(),
             album: BaseMbidText {
-                mbid: String::new(),
-                text: String::new(),
+                mbid: None,
+                text: None,
             },
             attr: None,
             date: None,
-            name: name.to_string(),
-            mbid: String::new(),
-            url: String::new(),
+            name: Some(name.to_string()),
+            mbid: None,
+            url: None,
         }
     }
 
     fn create_loved_track(artist: &str, name: &str) -> LovedTrack {
         LovedTrack {
             artist: BaseObject {
-                mbid: String::new(),
-                url: String::new(),
-                name: artist.to_string(),
+                mbid: None,
+                url: None,
+                name: Some(artist.to_string()),
             },
             date: Date {
                 uts: 0,
@@ -232,9 +232,9 @@ mod tests {
                 fulltrack: String::new(),
                 text: String::new(),
             },
-            name: name.to_string(),
-            mbid: String::new(),
-            url: String::new(),
+            name: Some(name.to_string()),
+            mbid: None,
+            url: None,
         }
     }
 

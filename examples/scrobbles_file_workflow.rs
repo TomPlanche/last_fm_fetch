@@ -137,7 +137,11 @@ async fn demo_analyze_and_now_playing(client: &LastFmClient, user: &str) -> DynR
 
     println!("=== check_currently_playing ===\n");
     match client.recent_tracks(user).check_currently_playing().await? {
-        Some(t) => println!("Now playing: {} — {}\n", t.artist.text, t.name),
+        Some(t) => println!(
+            "Now playing: {} — {}\n",
+            t.artist.text.as_deref().unwrap_or(""),
+            t.name.as_deref().unwrap_or("")
+        ),
         None => println!("Nothing marked as now playing.\n"),
     }
     Ok(())

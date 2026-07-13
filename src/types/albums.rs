@@ -4,7 +4,7 @@ use std::fmt;
 use crate::types::{BaseObject, BaseResponse, RankAttr, TrackImage};
 use serde::{Deserialize, Serialize};
 
-use crate::types::utils::{u32_from_str, vec_or_single};
+use crate::types::utils::{empty_string_as_none, u32_from_str, vec_or_single};
 
 /// An album from a user's top albums, ranked by play count
 ///
@@ -12,14 +12,17 @@ use crate::types::utils::{u32_from_str, vec_or_single};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct TopAlbum {
-    /// Album name
-    pub name: String,
+    /// Album name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
     /// Artist information
     pub artist: BaseObject,
-    /// `MusicBrainz` album identifier (may be empty string)
-    pub mbid: String,
-    /// Last.fm URL for this album
-    pub url: String,
+    /// `MusicBrainz` album identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this album (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
     /// Total number of times this album has been played
     #[serde(deserialize_with = "u32_from_str")]
     pub playcount: u32,
@@ -35,7 +38,10 @@ impl fmt::Display for TopAlbum {
         write!(
             f,
             "#{} - {} by {} ({} plays)",
-            self.attr.rank, self.name, self.artist.name, self.playcount
+            self.attr.rank,
+            self.name.as_deref().unwrap_or(""),
+            self.artist.name.as_deref().unwrap_or(""),
+            self.playcount
         )
     }
 }
@@ -71,10 +77,10 @@ impl crate::sqlite::SqliteExportable for TopAlbum {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS top_albums (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            name      TEXT    NOT NULL,
-            mbid      TEXT    NOT NULL,
-            url       TEXT    NOT NULL,
-            artist    TEXT    NOT NULL,
+            name      TEXT,
+            mbid      TEXT,
+            url       TEXT,
+            artist    TEXT,
             playcount INTEGER NOT NULL,
             rank      INTEGER NOT NULL
         )"
@@ -116,8 +122,8 @@ impl crate::sqlite::SqliteLoadable for TopAlbum {
             url: row.get(2)?,
             artist: crate::types::BaseObject {
                 name: row.get(3)?,
-                mbid: String::new(),
-                url: String::new(),
+                mbid: None,
+                url: None,
             },
             playcount: row.get(4)?,
             attr: crate::types::RankAttr {

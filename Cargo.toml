@@ -1,6 +1,6 @@
 [package]
 name = "lastfm-client"
-version = "4.0.2"
+version = "5.0.0"
 edition = "2024"
 description = "A modern, async Rust library for fetching and analyzing Last.fm user data"
 license = "MIT"
@@ -15,23 +15,23 @@ full     = ["sqlite", "progress"]
 
 [dependencies]
 async-trait = "0.1"
-chrono = "0.4.43"
+chrono = "0.4.45"
 csv = "1.4.0"
 dotenv = "0.15.0"
-futures = "0.3.31"
+futures = "0.3.32"
 parking_lot = "0.12"
 reqwest = { version = "0.12.28", features = ["json"] }
 indicatif = { version = "0.17", optional = true }
 rusqlite  = { version = "0.31", features = ["bundled"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 thiserror = "1.0"
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 tracing = "0.1"
 url = { version = "2.5.8", features = ["serde"] }
 
 [dev-dependencies]
-tokio = { version = "1.49.0", features = ["full", "test-util", "rt-multi-thread"] }
+tokio = { version = "1.52.3", features = ["full", "test-util", "rt-multi-thread"] }
 
 [[example]]
 name = "scrobbles_sqlite"

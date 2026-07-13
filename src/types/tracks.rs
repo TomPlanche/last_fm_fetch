@@ -5,7 +5,7 @@ use std::fmt;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::utils::{bool_from_str, u32_from_str, vec_or_single};
+use crate::types::utils::{bool_from_str, empty_string_as_none, u32_from_str, vec_or_single};
 
 use super::track_list::TrackList;
 
@@ -17,11 +17,12 @@ use super::track_list::TrackList;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct BaseMbidText {
-    /// `MusicBrainz` Identifier (may be empty string if not available)
-    pub mbid: String,
-    /// Text content (artist name, album name, etc.)
-    #[serde(rename = "#text")]
-    pub text: String,
+    /// `MusicBrainz` Identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Text content (artist name, album name, etc.); `None` when blank
+    #[serde(rename = "#text", default, deserialize_with = "empty_string_as_none")]
+    pub text: Option<String>,
 }
 
 /// Extended object type with `MusicBrainz` ID, URL, and name
@@ -30,14 +31,15 @@ pub struct BaseMbidText {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct BaseObject {
-    /// `MusicBrainz` Identifier (may be empty string if not available)
-    pub mbid: String,
-    /// Last.fm URL for this object
-    #[serde(default)]
-    pub url: String,
-    /// Name of the object (artist name, album name, etc.)
-    #[serde(alias = "#text")]
-    pub name: String,
+    /// `MusicBrainz` Identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this object (`None` when the API returns no URL)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
+    /// Name of the object (artist name, album name, etc.); `None` when blank
+    #[serde(alias = "#text", default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
 }
 
 /// Image information for tracks and albums
@@ -133,12 +135,15 @@ pub struct RecentTrack {
     pub attr: Option<Attributes>,
     /// When the track was played (None if currently playing)
     pub date: Option<Date>,
-    /// Track name
-    pub name: String,
-    /// `MusicBrainz` track identifier (may be empty string)
-    pub mbid: String,
-    /// Last.fm URL for this track
-    pub url: String,
+    /// Track name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
+    /// `MusicBrainz` track identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this track (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
 }
 
 impl fmt::Display for RecentTrack {
@@ -156,7 +161,9 @@ impl fmt::Display for RecentTrack {
         write!(
             f,
             "{} - {} [{}]{date_str}{status}",
-            self.name, self.artist.text, self.album.text
+            self.name.as_deref().unwrap_or(""),
+            self.artist.text.as_deref().unwrap_or(""),
+            self.album.text.as_deref().unwrap_or("")
         )
     }
 }
@@ -207,13 +214,15 @@ pub struct RecentTrackExtended {
     pub attr: Option<HashMap<String, String>>,
     /// When the track was played (None if currently playing)
     pub date: Option<Date>,
-    /// Track name
-    pub name: String,
-    /// `MusicBrainz` track identifier (may be empty string)
-    pub mbid: String,
-    /// Last.fm URL for this track
-    #[serde(default)]
-    pub url: String,
+    /// Track name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
+    /// `MusicBrainz` track identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this track (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
 }
 
 impl fmt::Display for RecentTrackExtended {
@@ -232,7 +241,9 @@ impl fmt::Display for RecentTrackExtended {
         write!(
             f,
             "{} - {} [{}]{date_str}{status}",
-            self.name, self.artist.name, self.album.name
+            self.name.as_deref().unwrap_or(""),
+            self.artist.name.as_deref().unwrap_or(""),
+            self.album.name.as_deref().unwrap_or("")
         )
     }
 }
@@ -279,12 +290,15 @@ pub struct LovedTrack {
     pub image: Vec<TrackImage>,
     /// Streamability information
     pub streamable: Streamable,
-    /// Track name
-    pub name: String,
-    /// `MusicBrainz` track identifier (may be empty string)
-    pub mbid: String,
-    /// Last.fm URL for this track
-    pub url: String,
+    /// Track name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
+    /// `MusicBrainz` track identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this track (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
 }
 
 impl fmt::Display for LovedTrack {
@@ -292,7 +306,9 @@ impl fmt::Display for LovedTrack {
         write!(
             f,
             "{} - {} (loved {})",
-            self.name, self.artist.name, self.date.text
+            self.name.as_deref().unwrap_or(""),
+            self.artist.name.as_deref().unwrap_or(""),
+            self.date.text
         )
     }
 }
@@ -327,16 +343,19 @@ impl Ord for LovedTrack {
 pub struct TopTrack {
     /// Streamability information
     pub streamable: Streamable,
-    /// `MusicBrainz` track identifier (may be empty string)
-    pub mbid: String,
-    /// Track name
-    pub name: String,
+    /// `MusicBrainz` track identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Track name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
     /// Track/album images in various sizes
     pub image: Vec<TrackImage>,
     /// Artist information with URL
     pub artist: BaseObject,
-    /// Last.fm URL for this track
-    pub url: String,
+    /// Last.fm URL for this track (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
     /// Track duration in seconds
     #[serde(deserialize_with = "u32_from_str")]
     pub duration: u32,
@@ -353,7 +372,10 @@ impl fmt::Display for TopTrack {
         write!(
             f,
             "#{} - {} by {} ({} plays)",
-            self.attr.rank, self.name, self.artist.name, self.playcount
+            self.attr.rank,
+            self.name.as_deref().unwrap_or(""),
+            self.artist.name.as_deref().unwrap_or(""),
+            self.playcount
         )
     }
 }
@@ -750,7 +772,10 @@ impl TrackList<RecentTrack> {
         let mut groups: HashMap<(String, String), (RecentTrack, u32)> = HashMap::new();
 
         for track in self {
-            let key = (track.name.clone(), track.artist.text.clone());
+            let key = (
+                track.name.clone().unwrap_or_default(),
+                track.artist.text.clone().unwrap_or_default(),
+            );
             let entry = groups.entry(key).or_insert_with(|| (track.clone(), 0));
             entry.1 += 1;
         }
@@ -758,12 +783,12 @@ impl TrackList<RecentTrack> {
         let mut scored: Vec<ScoredTrack> = groups
             .into_values()
             .map(|(rep, play_count)| ScoredTrack {
-                name: rep.name,
-                artist: rep.artist.text,
-                artist_mbid: rep.artist.mbid,
-                album: rep.album.text,
-                mbid: rep.mbid,
-                url: rep.url,
+                name: rep.name.unwrap_or_default(),
+                artist: rep.artist.text.unwrap_or_default(),
+                artist_mbid: rep.artist.mbid.unwrap_or_default(),
+                album: rep.album.text.unwrap_or_default(),
+                mbid: rep.mbid.unwrap_or_default(),
+                url: rep.url.unwrap_or_default(),
                 image: rep.image,
                 play_count,
                 rank: 0,
@@ -801,7 +826,10 @@ impl TrackList<RecentTrack> {
         let mut groups: HashMap<(String, String), u32> = HashMap::new();
 
         for track in self {
-            let key = (track.artist.text.clone(), track.artist.mbid.clone());
+            let key = (
+                track.artist.text.clone().unwrap_or_default(),
+                track.artist.mbid.clone().unwrap_or_default(),
+            );
             *groups.entry(key).or_insert(0) += 1;
         }
 
@@ -846,13 +874,13 @@ impl TrackList<RecentTrack> {
         let mut groups: HashMap<(String, String, String), u32> = HashMap::new();
 
         for track in self {
-            if track.album.text.is_empty() {
+            if track.album.text.as_deref().unwrap_or("").is_empty() {
                 continue;
             }
             let key = (
-                track.album.text.clone(),
-                track.album.mbid.clone(),
-                track.artist.text.clone(),
+                track.album.text.clone().unwrap_or_default(),
+                track.album.mbid.clone().unwrap_or_default(),
+                track.artist.text.clone().unwrap_or_default(),
             );
             *groups.entry(key).or_insert(0) += 1;
         }
@@ -1023,7 +1051,10 @@ impl TrackList<RecentTrackExtended> {
         let mut groups: HashMap<(String, String), (RecentTrackExtended, u32)> = HashMap::new();
 
         for track in self {
-            let key = (track.name.clone(), track.artist.name.clone());
+            let key = (
+                track.name.clone().unwrap_or_default(),
+                track.artist.name.clone().unwrap_or_default(),
+            );
             let entry = groups.entry(key).or_insert_with(|| (track.clone(), 0));
             entry.1 += 1;
         }
@@ -1031,12 +1062,12 @@ impl TrackList<RecentTrackExtended> {
         let mut scored: Vec<ScoredTrack> = groups
             .into_values()
             .map(|(rep, play_count)| ScoredTrack {
-                name: rep.name,
-                artist: rep.artist.name,
-                artist_mbid: rep.artist.mbid,
-                album: rep.album.name,
-                mbid: rep.mbid,
-                url: rep.url,
+                name: rep.name.unwrap_or_default(),
+                artist: rep.artist.name.unwrap_or_default(),
+                artist_mbid: rep.artist.mbid.unwrap_or_default(),
+                album: rep.album.name.unwrap_or_default(),
+                mbid: rep.mbid.unwrap_or_default(),
+                url: rep.url.unwrap_or_default(),
                 image: rep.image,
                 play_count,
                 rank: 0,
@@ -1061,7 +1092,10 @@ impl TrackList<RecentTrackExtended> {
         let mut groups: HashMap<(String, String), u32> = HashMap::new();
 
         for track in self {
-            let key = (track.artist.name.clone(), track.artist.mbid.clone());
+            let key = (
+                track.artist.name.clone().unwrap_or_default(),
+                track.artist.mbid.clone().unwrap_or_default(),
+            );
             *groups.entry(key).or_insert(0) += 1;
         }
 
@@ -1094,13 +1128,13 @@ impl TrackList<RecentTrackExtended> {
         let mut groups: HashMap<(String, String, String), u32> = HashMap::new();
 
         for track in self {
-            if track.album.name.is_empty() {
+            if track.album.name.as_deref().unwrap_or("").is_empty() {
                 continue;
             }
             let key = (
-                track.album.name.clone(),
-                track.album.mbid.clone(),
-                track.artist.name.clone(),
+                track.album.name.clone().unwrap_or_default(),
+                track.album.mbid.clone().unwrap_or_default(),
+                track.artist.name.clone().unwrap_or_default(),
             );
             *groups.entry(key).or_insert(0) += 1;
         }
@@ -1239,12 +1273,12 @@ impl crate::sqlite::SqliteExportable for RecentTrack {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS recent_tracks (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT    NOT NULL,
-            url        TEXT    NOT NULL,
-            artist     TEXT    NOT NULL,
-            artist_mbid TEXT   NOT NULL,
-            album      TEXT    NOT NULL,
-            album_mbid TEXT    NOT NULL,
+            name       TEXT,
+            url        TEXT,
+            artist     TEXT,
+            artist_mbid TEXT,
+            album      TEXT,
+            album_mbid TEXT,
             date_uts   INTEGER,
             loved      INTEGER NOT NULL DEFAULT 0
         )"
@@ -1278,15 +1312,15 @@ impl crate::sqlite::SqliteExportable for RecentTrackExtended {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS recent_tracks_extended (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT    NOT NULL,
-            url         TEXT    NOT NULL,
-            mbid        TEXT    NOT NULL,
-            artist      TEXT    NOT NULL,
-            artist_mbid TEXT    NOT NULL,
-            artist_url  TEXT    NOT NULL,
-            album       TEXT    NOT NULL,
-            album_mbid  TEXT    NOT NULL,
-            album_url   TEXT    NOT NULL,
+            name        TEXT,
+            url         TEXT,
+            mbid        TEXT,
+            artist      TEXT,
+            artist_mbid TEXT,
+            artist_url  TEXT,
+            album       TEXT,
+            album_mbid  TEXT,
+            album_url   TEXT,
             date_uts    INTEGER,
             loved       INTEGER NOT NULL DEFAULT 0
         )"
@@ -1324,10 +1358,10 @@ impl crate::sqlite::SqliteExportable for LovedTrack {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS loved_tracks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT    NOT NULL,
-            url         TEXT    NOT NULL,
-            artist      TEXT    NOT NULL,
-            artist_mbid TEXT    NOT NULL,
+            name        TEXT,
+            url         TEXT,
+            artist      TEXT,
+            artist_mbid TEXT,
             date_uts    INTEGER NOT NULL
         )"
     }
@@ -1357,10 +1391,10 @@ impl crate::sqlite::SqliteExportable for TopTrack {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS top_tracks (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            name      TEXT    NOT NULL,
-            url       TEXT    NOT NULL,
-            artist    TEXT    NOT NULL,
-            mbid      TEXT    NOT NULL,
+            name      TEXT,
+            url       TEXT,
+            artist    TEXT,
+            mbid      TEXT,
             playcount INTEGER NOT NULL,
             rank      INTEGER NOT NULL
         )"
@@ -1414,7 +1448,7 @@ impl crate::sqlite::SqliteLoadable for RecentTrack {
                 text: String::new(),
             }),
             // Fields not stored in the schema — reconstructed with defaults.
-            mbid: String::new(),
+            mbid: None,
             streamable: false,
             image: vec![],
             attr: None,
@@ -1477,14 +1511,14 @@ impl crate::sqlite::SqliteLoadable for LovedTrack {
             artist: BaseObject {
                 name: row.get(2)?,
                 mbid: row.get(3)?,
-                url: String::new(),
+                url: None,
             },
             date: Date {
                 uts: row.get(4)?,
                 text: String::new(),
             },
             // Fields not stored in the schema — reconstructed with defaults.
-            mbid: String::new(),
+            mbid: None,
             image: vec![],
             streamable: Streamable {
                 fulltrack: String::new(),
@@ -1509,8 +1543,8 @@ impl crate::sqlite::SqliteLoadable for TopTrack {
             url: row.get(1)?,
             artist: BaseObject {
                 name: row.get(2)?,
-                mbid: String::new(),
-                url: String::new(),
+                mbid: None,
+                url: None,
             },
             mbid: row.get(3)?,
             playcount: row.get(4)?,
@@ -1536,23 +1570,23 @@ mod tests {
     fn make_track(name: &str, artist: &str, album: &str, uts: Option<u32>) -> RecentTrack {
         RecentTrack {
             artist: BaseMbidText {
-                mbid: String::new(),
-                text: artist.to_string(),
+                mbid: None,
+                text: Some(artist.to_string()),
             },
             streamable: false,
             image: vec![],
             album: BaseMbidText {
-                mbid: String::new(),
-                text: album.to_string(),
+                mbid: None,
+                text: Some(album.to_string()),
             },
             attr: None,
             date: uts.map(|u| Date {
                 uts: u,
                 text: String::new(),
             }),
-            name: name.to_string(),
-            mbid: String::new(),
-            url: String::new(),
+            name: Some(name.to_string()),
+            mbid: None,
+            url: None,
         }
     }
 
@@ -1646,7 +1680,7 @@ mod tests {
         ]);
         let filtered = list.without_now_playing();
         assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].name, "T1");
+        assert_eq!(filtered[0].name.as_deref(), Some("T1"));
     }
 
     #[test]
@@ -1665,25 +1699,25 @@ mod tests {
     fn make_ext(name: &str, artist: &str, album: &str, uts: Option<u32>) -> RecentTrackExtended {
         RecentTrackExtended {
             artist: BaseObject {
-                name: artist.to_string(),
-                mbid: String::new(),
-                url: String::new(),
+                name: Some(artist.to_string()),
+                mbid: None,
+                url: None,
             },
             streamable: false,
             image: vec![],
             album: BaseObject {
-                name: album.to_string(),
-                mbid: String::new(),
-                url: String::new(),
+                name: Some(album.to_string()),
+                mbid: None,
+                url: None,
             },
             attr: None,
             date: uts.map(|u| Date {
                 uts: u,
                 text: String::new(),
             }),
-            name: name.to_string(),
-            mbid: String::new(),
-            url: String::new(),
+            name: Some(name.to_string()),
+            mbid: None,
+            url: None,
         }
     }
 
@@ -1761,7 +1795,7 @@ mod tests {
         ]);
         let filtered = list.without_now_playing();
         assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].name, "T1");
+        assert_eq!(filtered[0].name.as_deref(), Some("T1"));
     }
 
     #[test]
@@ -1808,23 +1842,23 @@ mod tests {
     fn test_timestamped_trait() {
         let track = RecentTrack {
             artist: BaseMbidText {
-                mbid: String::new(),
-                text: "Artist".to_string(),
+                mbid: None,
+                text: Some("Artist".to_string()),
             },
             streamable: false,
             image: vec![],
             album: BaseMbidText {
-                mbid: String::new(),
-                text: String::new(),
+                mbid: None,
+                text: None,
             },
             attr: None,
             date: Some(Date {
                 uts: 1_234_567_890,
                 text: "test".to_string(),
             }),
-            name: "Track".to_string(),
-            mbid: String::new(),
-            url: String::new(),
+            name: Some("Track".to_string()),
+            mbid: None,
+            url: None,
         };
 
         assert_eq!(track.get_timestamp(), Some(1_234_567_890));

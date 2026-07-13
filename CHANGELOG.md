@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-07-13
+
+### Changed (breaking)
+
+Text fields that the Last.fm API can return as an empty string (`""`) are now typed `Option<String>` instead of `String`. The API returns `""` for absent MusicBrainz identifiers, missing URLs, and non-album (single) tracks; these blanks are now folded to `None` at deserialization time so that "no value" has a single representation and an empty string never appears as a value.
+
+Affected public types and fields (all now `Option<String>`):
+
+| Type | Fields changed to `Option<String>` |
+|------|-------------------------------------|
+| `BaseMbidText` | `mbid`, `text` |
+| `BaseObject` | `mbid`, `url`, `name` |
+| `RecentTrack` | `name`, `url`, `mbid` |
+| `RecentTrackExtended` | `name`, `url`, `mbid` |
+| `LovedTrack` | `name`, `url`, `mbid` |
+| `TopTrack` | `name`, `url`, `mbid` |
+| `TopAlbum` | `name`, `url`, `mbid` |
+| `TopArtist` | `name`, `url`, `mbid` |
+
+Code that reads these fields must now handle the `Option`. The idiomatic update is `field.as_deref().unwrap_or("")` (or `field.clone().unwrap_or_default()` where an owned `String` is required):
+
+```rust
+// Before (4.x)
+println!("{} - {}", track.name, track.artist.text);
+
+// After (5.0)
+println!(
+    "{} - {}",
+    track.name.as_deref().unwrap_or(""),
+    track.artist.text.as_deref().unwrap_or("")
+);
+```
+
+The `ScoredTrack`, `ScoredArtist`, and `ScoredAlbum` aggregation types are unchanged (their name/mbid fields remain `String`), as are the weekly-chart, personal-tags, friends, and user types (which use their own record structs).
+
+JSON export now emits `null` for these fields when absent, where 4.x emitted `""`.
+
+### Changed (breaking, SQLite)
+
+All text columns across every exported table (`recent_tracks`, `recent_tracks_extended`, `loved_tracks`, `top_tracks`, `top_albums`, `top_artists`) are now nullable, and an empty value is stored as SQL `NULL` rather than `''`. A database written by 5.0 will never contain an empty string in a text column.
+
+Queries that previously matched blanks with `= ''` must use `IS NULL`:
+
+```sql
+-- Before
+SELECT COUNT(*) FROM recent_tracks_extended WHERE album_mbid = '';
+-- After
+SELECT COUNT(*) FROM recent_tracks_extended WHERE album_mbid IS NULL;
+```
+
+Databases created by earlier versions still contain `''` in these columns and are unchanged by simply upgrading. To fold existing blanks to `NULL`, each table must be rebuilt (SQLite cannot drop a `NOT NULL` constraint in place), copying rows through `NULLIF(col, '')`. For example, for `recent_tracks_extended`:
+
+```sql
+BEGIN TRANSACTION;
+ALTER TABLE recent_tracks_extended RENAME TO recent_tracks_extended_old;
+CREATE TABLE recent_tracks_extended (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, url TEXT, mbid TEXT,
+    artist TEXT, artist_mbid TEXT, artist_url TEXT, album TEXT, album_mbid TEXT,
+    album_url TEXT, date_uts INTEGER, loved INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO recent_tracks_extended
+SELECT id, NULLIF(name, ''), NULLIF(url, ''), NULLIF(mbid, ''), NULLIF(artist, ''),
+       NULLIF(artist_mbid, ''), NULLIF(artist_url, ''), NULLIF(album, ''),
+       NULLIF(album_mbid, ''), NULLIF(album_url, ''), date_uts, loved
+FROM recent_tracks_extended_old;
+DROP TABLE recent_tracks_extended_old;
+COMMIT;
+VACUUM;
+```
+
+### Removed
+
+- The internal `sqlite::empty_to_null` and `sqlite::text_or_default` helpers were removed. With every text field now `Option<String>`, values bind to `NULL` and load from `NULL` directly, so no boundary coercion is needed.
+
 ## [4.0.2] - 2026-06-15
 
 ### Fixed

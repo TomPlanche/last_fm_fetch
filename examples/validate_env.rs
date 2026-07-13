@@ -34,7 +34,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(tracks) => {
                     println!("\nFetched {} recent tracks:", tracks.len());
                     for (i, track) in tracks.iter().enumerate() {
-                        println!("  {}. {} - {}", i + 1, track.name, track.artist.text);
+                        println!(
+                            "  {}. {} - {}",
+                            i + 1,
+                            track.name.as_deref().unwrap_or(""),
+                            track.artist.text.as_deref().unwrap_or("")
+                        );
                     }
                 }
                 Err(e) => {

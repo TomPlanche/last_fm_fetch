@@ -80,7 +80,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Show first few tracks
             for (i, track) in tracks.iter().take(3).enumerate() {
-                println!("  {}. {} - {}", i + 1, track.name, track.artist.text);
+                println!(
+                    "  {}. {} - {}",
+                    i + 1,
+                    track.name.as_deref().unwrap_or(""),
+                    track.artist.text.as_deref().unwrap_or("")
+                );
             }
         }
         Err(e) => {

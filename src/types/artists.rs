@@ -4,7 +4,7 @@ use std::fmt;
 use crate::types::{BaseResponse, RankAttr, TrackImage};
 use serde::{Deserialize, Serialize};
 
-use crate::types::utils::{bool_from_str, u32_from_str, vec_or_single};
+use crate::types::utils::{bool_from_str, empty_string_as_none, u32_from_str, vec_or_single};
 
 /// An artist from a user's top artists, ranked by play count
 ///
@@ -12,12 +12,15 @@ use crate::types::utils::{bool_from_str, u32_from_str, vec_or_single};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct TopArtist {
-    /// Artist name
-    pub name: String,
-    /// `MusicBrainz` artist identifier (may be empty string)
-    pub mbid: String,
-    /// Last.fm URL for this artist
-    pub url: String,
+    /// Artist name (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub name: Option<String>,
+    /// `MusicBrainz` artist identifier (`None` when the API returns no identifier)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub mbid: Option<String>,
+    /// Last.fm URL for this artist (`None` when blank)
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub url: Option<String>,
     /// Total number of times this artist has been played
     #[serde(deserialize_with = "u32_from_str")]
     pub playcount: u32,
@@ -36,7 +39,9 @@ impl fmt::Display for TopArtist {
         write!(
             f,
             "#{} - {} ({} plays)",
-            self.attr.rank, self.name, self.playcount
+            self.attr.rank,
+            self.name.as_deref().unwrap_or(""),
+            self.playcount
         )
     }
 }
@@ -72,9 +77,9 @@ impl crate::sqlite::SqliteExportable for TopArtist {
     fn create_table_sql() -> &'static str {
         "CREATE TABLE IF NOT EXISTS top_artists (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            name      TEXT    NOT NULL,
-            mbid      TEXT    NOT NULL,
-            url       TEXT    NOT NULL,
+            name      TEXT,
+            mbid      TEXT,
+            url       TEXT,
             playcount INTEGER NOT NULL,
             rank      INTEGER NOT NULL
         )"

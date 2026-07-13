@@ -201,9 +201,9 @@ async fn test_recent_tracks_flow() {
         .expect("Failed to fetch recent tracks");
 
     assert_eq!(tracks.len(), 2);
-    assert_eq!(tracks[0].name, "Test Track 1");
-    assert_eq!(tracks[0].artist.text, "Test Artist 1");
-    assert_eq!(tracks[1].name, "Test Track 2");
+    assert_eq!(tracks[0].name.as_deref(), Some("Test Track 1"));
+    assert_eq!(tracks[0].artist.text.as_deref(), Some("Test Artist 1"));
+    assert_eq!(tracks[1].name.as_deref(), Some("Test Track 2"));
 }
 
 #[tokio::test]
@@ -264,8 +264,8 @@ async fn test_loved_tracks_flow() {
         .expect("Failed to fetch loved tracks");
 
     assert_eq!(tracks.len(), 1);
-    assert_eq!(tracks[0].name, "Loved Track 1");
-    assert_eq!(tracks[0].artist.name, "Loved Artist 1");
+    assert_eq!(tracks[0].name.as_deref(), Some("Loved Track 1"));
+    assert_eq!(tracks[0].artist.name.as_deref(), Some("Loved Artist 1"));
     assert_eq!(tracks[0].streamable.fulltrack, "1");
 }
 
@@ -281,9 +281,9 @@ async fn test_top_tracks_flow() {
         .expect("Failed to fetch top tracks");
 
     assert_eq!(tracks.len(), 2);
-    assert_eq!(tracks[0].name, "Top Track 1");
+    assert_eq!(tracks[0].name.as_deref(), Some("Top Track 1"));
     assert_eq!(tracks[0].playcount, 100);
-    assert_eq!(tracks[1].name, "Top Track 2");
+    assert_eq!(tracks[1].name.as_deref(), Some("Top Track 2"));
     assert_eq!(tracks[1].playcount, 50);
 
     // Verify tracks are sorted by play count
@@ -452,10 +452,10 @@ async fn test_track_data_integrity() {
 
     // Verify first track has all expected data
     let track = &tracks[0];
-    assert!(!track.name.is_empty());
-    assert!(!track.artist.text.is_empty());
-    assert!(!track.album.text.is_empty());
-    assert!(!track.url.is_empty());
+    assert!(track.name.is_some());
+    assert!(track.artist.text.is_some());
+    assert!(track.album.text.is_some());
+    assert!(track.url.is_some());
     assert!(track.date.is_some());
 
     // Verify date parsing
